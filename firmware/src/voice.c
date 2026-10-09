@@ -12,6 +12,14 @@
  * declicks it); one of the part's own is restarted in place. Extra UNISON
  * voices only start when there is room. The drum track has its own voices (drums.c). */
 static uint32_t vage;                                   /* voice ages: one clock for every part */
+#if BOARD_SMK37
+/* the SMK-37 Pro's wheels (main.c smk_wheels), on the selected synth track: the pitch wheel bends
+ * (1/4096 semitone, +-SMK_BEND_ST semitones), the mod wheel adds vibrato from the track's LFO (0..127 = up
+ * to +-1 semitone) */
+#define SMK_BEND_ST 7
+static volatile int32_t perf_bend;
+static volatile int32_t perf_modw;
+#endif
 /* engines that play recorded material (a position, not a phase): no phases kept or spread */
 #if FELUCCA_SLICE
 static int eng_sampled(const engine_t *e) { return e == &ENG_SAMPLE || e == &ENG_SLICE; }
@@ -1171,11 +1179,19 @@ static uint32_t track_render(track_t *t, int32_t *out, uint32_t n)
                                                          * controls; in MULTI its own) */
     int32_t bend = (uint32_t)(t - trk) < NPART ?
                    (part_ctl[pc].bend * (e == &ENG_HYBRID ? (int32_t)hy_cur[t - trk].bend : 2)) >> 3 : 0;
+#if BOARD_SMK37
+    if (t == TSEL)                                  /* the pitch wheel (main.c: calibrated, 1/4096 semitone) */
+        bend += perf_bend;
+#endif
 #if CLIPPER_SYNTH
     /* Clipper 0.3: the mod wheel's and the aftertouch's destinations (P_MWDST, P_ATDST), velocity to the cutoff
      * (P_VELF); VIB and TREM ride a vibrato LFO of their own (~5.5 Hz sine), WAH the sound's LFO */
     static uint32_t vib_ph[NPART];
     int32_t vib, mw = part_ctl[pc].mw, cat = part_ctl[pc].at;
+#if BOARD_SMK37
+    if (t == TSEL && perf_modw > mw)                /* the mod wheel: its own vibrato through P_MWDST */
+        mw = perf_modw;
+#endif
     if (e == &ENG_HYBRID)                               /* (HYBRID: its matrix takes MW and AT) */
         mw = cat = 0;
     vib_ph[(uint32_t)(t - trk) % NPART] += 535642u * n;
