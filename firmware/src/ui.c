@@ -280,8 +280,20 @@ static int arp_param(uint32_t i) { return i >= P_AMODE && i <= P_AORDER; }
 #if CLIPPER_SYNTH
 static void hist_before_load(void);                  /* (0.7, ui_synth.c: the edits a step of their own, first) */
 #endif
+#if BOARD_SMK37
+/* the SMK's browser position: the list index the last K3/K4/picker went to. It cannot be derived from the
+ * sound (the names repeat across engines -- "REESE" is both HYBRID and ANALOG -- and base_pos keeps the last
+ * match), so PRESETS stepped past its family and never stopped. apply_preset_to clears it: the sound changed
+ * by another way (an engine page, a project, a layer), so the index is stale. */
+static uint32_t smk_pos;
+static uint8_t smk_pos_ok;
+#endif
+
 static void apply_preset_to(track_t *t, uint32_t pi)
 {
+#if BOARD_SMK37
+    smk_pos_ok = 0;                                  /* (preset_go sets it again after this call) */
+#endif
     const engine_t *e = ENGINES[t->eng_req % NENGINES];
     uint32_t i;
     int keep_arp = arp_user_on(t), kbd_hold = !t->p[P_AMODE] && t->p[P_AHOLD];   /* (1.0: the player's arp only) */
@@ -361,6 +373,7 @@ static void set_engine_of(track_t *t, uint32_t ei)
 }
 
 static void apply_preset(uint32_t pi) { apply_preset_to(TSEL, pi); }
+
 static void set_engine(uint32_t ei) { set_engine_of(TSEL, ei); }
 
 static void track_defaults(track_t *t)
@@ -701,12 +714,20 @@ static void preset_go(uint32_t n)                    /* load list index n into t
     fav_at = (int8_t)(n < fav_list(b) ? (int32_t)n : -1);
     if (e == NENGINES) {
         up_load(k);
+#if BOARD_SMK37
+        smk_pos = n;
+        smk_pos_ok = 1;
+#endif
         return;
     }
     if (e != TSEL->eng_req)
         select_engine(e);
     apply_preset(k);
     ui.force = 1;
+#if BOARD_SMK37
+    smk_pos = n;                                     /* (base_pos would give the last same-named entry) */
+    smk_pos_ok = 1;
+#endif
 }
 
 /* Clipper: ALGORITHM, the kind of sound: the first sound of the next kind (BASS, KEYS, ORGN, PAD, LEAD, PLCK,

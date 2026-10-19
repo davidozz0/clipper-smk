@@ -457,4 +457,5 @@ EXPORT uint16_t *web_screen(void) { return web_fb; }
 EXPORT uint32_t web_screen_draws(void) { return web_draws; }
 EXPORT uint32_t web_now_ms(void) { return fm1_ms; }
 EXPORT uint32_t web_playing(void) { return song.playing; }
+EXPORT uint32_t web_preset_now(void) { return (uint32_t)TSEL->eng_req * 256u + (uint32_t)TSEL->preset; }   /* the test's probe */
 EXPORT uint32_t web_sample_rate(void) { return FS; }

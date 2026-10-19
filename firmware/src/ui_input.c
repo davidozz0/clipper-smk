@@ -1167,6 +1167,10 @@ static void ui_input(void)
          * page and TRACKS only (the drum track: its kits); elsewhere a stray turn would throw away the sound
          * being edited. Every detent counts */
         uint32_t total, cur = preset_pos(&total);
+#if BOARD_SMK37
+        if (smk_pos_ok && smk_pos < total)
+            cur = smk_pos;                           /* the browser's own position (names repeat in the list) */
+#endif
         if (is_drum(TSEL))
             TDRUM->p[P_E0] = (int16_t)clamp(TDRUM->p[P_E0] + s, 0, DRUM_KITS - 1);
         else if (total) {
