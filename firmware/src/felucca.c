@@ -43,6 +43,7 @@
 #else
 #define FELUCCA_ID "FM-1_900"    /* package identity (build.py: the .fwsc marker string) */
 #endif
+#endif
 #ifndef FELUCCA_CPU1
 #define FELUCCA_CPU1 1          /* (0.7) the second core (cpu1.c); 0: one core, as before */
 #endif
