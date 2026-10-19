@@ -716,6 +716,17 @@ static uint32_t kind_at(uint32_t n)                  /* (0.7: the favourites fir
     uint32_t b[FAV_N], nf = fav_list(b);
     return n < nf ? 0xFEu : n - nf < NBANK ? BANK[n - nf].kind : 0xFFu;
 }
+/* the block of the list that the sound at n belongs to: the favourites, one kind, or the user presets */
+static void preset_range(uint32_t n, uint32_t *lo, uint32_t *hi)
+{
+    uint32_t total = 0, k = kind_at(n);
+    (void)preset_pos(&total);
+    *lo = *hi = n;
+    while (*lo && kind_at(*lo - 1u) == k)
+        (*lo)--;
+    while (*hi + 1u < total && kind_at(*hi + 1u) == k)
+        (*hi)++;
+}
 static void preset_kind_jump(int32_t s)
 {
     uint32_t total, cur = preset_pos(&total), n = cur, k;

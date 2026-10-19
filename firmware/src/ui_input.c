@@ -1163,11 +1163,22 @@ static void ui_input(void)
             TDRUM->p[P_E0] = (int16_t)clamp(TDRUM->p[P_E0] + s, 0, DRUM_KITS - 1);
         else if (total) {
 #if BOARD_SMK37
-            uint32_t t2;
-#endif
+            {   /* the SMK: PRESETS stays inside the family shown (ALGORITHM changes family) */
+                uint32_t t2, lo, hi;
+                int32_t n = (int32_t)cur + s;
+                preset_range(cur, &lo, &hi);
+                if (n < (int32_t)lo)
+                    n = (int32_t)lo;
+                if (n > (int32_t)hi)
+                    n = (int32_t)hi;
+                if ((uint32_t)n != cur)
+                    preset_go((uint32_t)n);
+                else
+                    ui_message(preset_kind(cur));       /* at the edge: say which family this is */
+                smk_pick_set(preset_pos(&t2));          /* the picker: 16 sounds on the pads */
+            }
+#else
             preset_go((uint32_t)(((int32_t)cur + s % (int32_t)total + (int32_t)total) % (int32_t)total));
-#if BOARD_SMK37
-            smk_pick_set(preset_pos(&t2));              /* the picker: 16 sounds on the pads */
 #endif
         }
     }
