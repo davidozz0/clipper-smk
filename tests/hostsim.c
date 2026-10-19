@@ -28,12 +28,16 @@
 #undef memset
 #undef memcpy
 #undef memcmp
+#ifndef FM1_IN_EXTERN
 static struct { volatile uint32_t notes, buttons; } fm1_in;
 static void fm1_irq_off(void) {}                 /* (the host: one thread) */
 static void fm1_irq_on(void) {}
+#endif
 #include "../firmware/src/core.h"
 #include "../firmware/src/cpu1.h"
+#ifndef FM1_IN_EXTERN
 #include "cpu1_host.c"                  /* the second core on the host: CORES=1 inline, CORES=2 a thread */
+#endif
 #include "../firmware/src/engines.c"
 #include "../firmware/src/drums.c"
 #include "../firmware/src/params.c"
@@ -76,6 +80,8 @@ static void wav_put(FILE *f, int32_t l, int32_t r)
     fwrite(s, 2, 2, f);
 }
 
+#ifndef FM1_IN_EXTERN
+/* (the browser bridge stops here: the command-line harness needs clock / getenv / stdio) */
 /* ---------------------------------------------------------------- TRACKS --- */
 static uint64_t now_ns(void)
 {
@@ -925,3 +931,4 @@ int main(int argc, char **argv)
     fclose(w);
     return 0;
 }
+#endif /* FM1_IN_EXTERN */
