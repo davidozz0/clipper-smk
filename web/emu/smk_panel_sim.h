@@ -85,8 +85,8 @@ int smk_extkey_take(void)                                /* (key << 8) | velocit
     int32_t e;
     if (smk_extq_h == smk_extq_t)
         return -1;
-    e = (int32_t)smk_extq[smk_extq_t & 63u];
-    smk_extq_t++;
+    e = (int32_t)smk_extq[smk_extq_h & 63u];             /* read the HEAD, advance the HEAD */
+    smk_extq_h++;                                        /* (the tail only grows in smk_ext_push) */
     return e;
 }
 
