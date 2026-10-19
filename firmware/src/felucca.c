@@ -56,6 +56,10 @@
 #ifndef FELUCCA_UAC_TONE
 #define FELUCCA_UAC_TONE 0       /* bench: the USB input sends test triangles instead of the music */
 #endif
+#if BOARD_SMK37
+#define SMK_TRS_TARGET 1        /* the real UART on the target; the host tests stub it */
+#include "smk_trs.c"            /* SMK-37 Pro: TRS MIDI OUT on the 3.5 mm jack (UART1 TX, PC7) */
+#endif
 #include "usb.c"
 #ifndef FELUCCA_UART
 #if BOARD_SMK37

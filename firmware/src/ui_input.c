@@ -282,7 +282,7 @@ static void ui_leds(void)
     for (c = 0; c < SMK_NLED; c++)                 /* the buttons: on / off (no dim layers) */
         fm1_led[c] = nl[c];
     smk_pad_piano = ui.layer == LY_SCALE;          /* SCALE held: the pads are a little piano (smk_input.h) */
-    fm1_led[SMK_BTN_FADER_BANK] = smk_fbank != 0;  /* FADER BANK lit off bank A */
+    fm1_led[SMK_BTN_FADER_BANK] = SMK_FADERS && smk_fbank != 0;  /* FADER BANK lit off bank A */
     if (!is_drum(TSEL) && TSEL->p[P_AMODE])        /* ARP lit while the selected track's arpeggiator runs */
         fm1_led[panel.btn[B_ARP]] = 1;
     if ((int32_t)(fm1_ms - padled_hold_until) >= 0) {   /* the pads. Off is off: no glow layers */
@@ -952,12 +952,14 @@ static void ui_input(void)
         }
         ui.force = 1;
     }
+#if SMK_FADERS
     if (pressed & 1u << SMK_BTN_FADER_BANK) {                   /* FADER BANK: what the four faders set */
         static const char *const FB[4] = {"A  LEVEL", "B  FILTER", "C  REVERB", "D  DELAY"};
         smk_fbank = (uint8_t)((smk_fbank + 1u) % 4u);
         smk_fbank_new = 1;
         ui_say("FADER BANK ", FB[smk_fbank]);
     }
+#endif
 #endif
     uint32_t home = btn_hold(&ui.home_t0, B_HOME, now, 1);
     int32_t s;

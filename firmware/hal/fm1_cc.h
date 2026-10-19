@@ -14,3 +14,9 @@
 #ifndef BOARD_SMK37
 #define BOARD_SMK37 0
 #endif
+
+/* SMK-37 Pro: the four faders. 0 = off (this unit's fader 1 is broken; the value was
+ * read as noise, so the faders are disabled until the part is replaced). 1 = on. */
+#ifndef SMK_FADERS
+#define SMK_FADERS 0
+#endif

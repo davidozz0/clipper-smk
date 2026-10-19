@@ -101,6 +101,9 @@ void fm1_timer5_irq(void)
     }
     if (owed & 1u)
         usb_poll();
+#if BOARD_SMK37
+    smk_trs_poll();                                 /* SMK-37 Pro: service the TRS OUT queue (2 kHz) */
+#endif
 #if FELUCCA_UART
     if (owed & 2u)
         uart_midi_poll();
@@ -132,6 +135,10 @@ static void hexs(char *b, uint32_t v)
  * A fader takes over only once it moves (also after a bank change), so nothing jumps. */
 static void smk_faders(void)
 {
+#if !SMK_FADERS
+    return;                                         /* fader 1 is broken on this unit: the four are off */
+#endif
+
     static uint8_t last[4] = {0xFF, 0xFF, 0xFF, 0xFF};
     uint32_t i;
     if (smk_fbank_new) {                                  /* a new bank: wait for each fader to move */
@@ -324,6 +331,9 @@ static void fm1_main(void)
     usb_rate_mode = usb_rate;                           /* (0.7) menu USB RATE, the same way */
 #endif
     usb_start();
+#if BOARD_SMK37
+    smk_trs_start();                                /* SMK-37 Pro: the 3.5 mm jack (TRS MIDI OUT) */
+#endif
 #if FELUCCA_UART
     uart_midi_init();
 #endif
