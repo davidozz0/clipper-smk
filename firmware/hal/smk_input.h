@@ -99,6 +99,10 @@ static const uint8_t SMK_WHITE_NOTE[SMK_NPAD] = {0, 2, 4, 6, 7, 9, 11, 12, 14, 1
  * black keys between them (C#4 D#4 - F#4 G#4 A#4 - C#5); note-key index (0 = F3) by hardware pad, -1 = none */
 static const int8_t SMK_PIANO_NOTE[SMK_NPAD] = {7, 9, 11, 12, 14, 16, 18, 19, 8, 10, -1, 13, 15, 17, -1, 20};
 static volatile uint8_t smk_pad_piano;
+/* SMK-37 Pro: the pad picker. When smk_pad_pick is set the UI has the pads: a hit is
+ * reported here (smk_pad_take) and does not play its white key. */
+static volatile uint8_t smk_pad_pick, smk_pad_hits;
+static uint8_t smk_pad_take(void) { uint8_t h = smk_pad_hits; smk_pad_hits = 0; return h; }
 static uint8_t smk_pad_note[SMK_NPAD];   /* the note key a pad pressed (+1; 0 = none): its release ends that one */
 #define SMK_WHITE_OF_PAD(p) ((p) < 8u ? (p) + 8u : (p) - 8u)   /* (the same swap both ways) */
 
@@ -435,6 +439,11 @@ static void fm1__frame(void)
 static void smk__padq(uint32_t pad, uint32_t vel)     /* a pad hit (vel) or release (0): its white key */
 {
     int32_t n0 = smk_pad_piano ? SMK_PIANO_NOTE[pad] : (int32_t)SMK_WHITE_NOTE[SMK_WHITE_OF_PAD(pad)];
+    if (smk_pad_pick) {                                /* the UI has the pads (the sound picker) */
+        if (vel && pad < 16u)
+            smk_pad_hits |= (uint8_t)(1u << pad);
+        return;
+    }
     uint32_t n, bit;
     if (vel) {
         if (n0 < 0)

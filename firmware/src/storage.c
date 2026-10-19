@@ -73,7 +73,7 @@ static uint32_t st_sector(uint32_t obj, uint32_t copy)  /* flash offset of copy 
  * firmware's projects; its own backups are its business) and take the store. Samples (FL_SMP) validate
  * themselves. Calibration, BT pairing and key_mac are outside FL_DATA: never touched. */
 #ifndef FELUCCA_DATA_FAMILY
-#define FELUCCA_DATA_FAMILY "SLOOP"
+#define FELUCCA_DATA_FAMILY "CLIPPER"
 #endif
 #ifndef FELUCCA_DATA_UNTAGGED_OK
 #define FELUCCA_DATA_UNTAGGED_OK 1

@@ -6,6 +6,26 @@
  * and relighting would let the 10 kHz scan catch the dark gap and flicker. */
 #if BOARD_SMK37
 static uint8_t smk_fbank, smk_fbank_new;           /* FADER BANK: 0 level, 1 filter, 2 reverb, 3 delay (main.c smk_faders) */
+/* the pad picker (Clipper): turning PRESETS shows 16 sounds on the pads, a pad loads one;
+ * KNOB BANK pins it. The pads are the white keys the rest of the time. */
+static uint8_t smk_pick, smk_pick_pin;
+static uint32_t smk_pick_until, smk_pick_base;
+static int smk_pick_on(void)
+{
+    return (smk_pick || smk_pick_pin) && ui.layer == LY_PLAY && !is_drum(TSEL);
+}
+static void smk_pick_set(uint32_t cur)
+{
+    uint32_t total;
+    (void)preset_pos(&total);
+    if (!total)
+        return;
+    if (cur > total) cur = total;
+    smk_pick_base = (cur & ~15u) < total ? (cur & ~15u) : (total > 16u ? total - 16u : 0u);
+    smk_pick = 1;
+    smk_pick_until = fm1_ms + 4000u;
+    ui.force = 1;
+}
 /* SMK-37 Pro: one flag per id. Ids 0..18 are the button LEDs (smk_input.h), the note keys (no LEDs of
  * their own) take LED_KEY0 + k; ui_leds shows white keys F3..G5 on the 16 RGB pads. */
 #define LED_BUF 64u
@@ -288,7 +308,18 @@ static void ui_leds(void)
     if ((int32_t)(fm1_ms - padled_hold_until) >= 0) {   /* the pads. Off is off: no glow layers */
         static const uint8_t PAL[NTRK][3] = {{40, 124, 255}, {30, 204, 112}, {255, 198, 24}, {255, 98, 26}};   /* the screen's track colours (TE_COL) */
         const uint8_t *col = PAL[song.sel % NTRK];
-        if (ui.layer == LY_SCALE) {                /* white and black keys lit white, the scale green, its root brighter */
+        if (smk_pick_on()) {                       /* the sound picker: 16 sounds, the current one bright */
+            uint32_t total, cur = preset_pos(&total), i;
+            for (i = 0; i < 16u; i++) {
+                uint32_t p = SMK_PAD_OF_WHITE(i), idx = smk_pick_base + i;
+                if (idx >= total)
+                    padled_set(p, 0, 0, 0);
+                else if (idx == cur)
+                    padled_set(p, 120, 120, 120);
+                else
+                    padled_set(p, (uint8_t)(col[0] >> 3), (uint8_t)(col[1] >> 3), (uint8_t)(col[2] >> 3));
+            }
+        } else if (ui.layer == LY_SCALE) {                /* white and black keys lit white, the scale green, its root brighter */
             uint32_t sk = scale_keys(0), rk = scale_keys(1);
             for (c = 0; c < 16u; c++) {
                 int32_t n = SMK_PIANO_NOTE[c];
@@ -939,6 +970,23 @@ static void ui_input(void)
 {
     uint32_t pressed = fm1_input_edges(0), notes = fm1_input_note_edges(), now = fm1_ticks(), id, b, k;
 #if BOARD_SMK37
+    {   /* the pad picker: its hits, and the 4 s it stays up */
+        uint8_t hits;
+        if (smk_pick && !smk_pick_pin && (int32_t)(fm1_ms - smk_pick_until) >= 0)
+            smk_pick = 0;
+        smk_pad_pick = (uint8_t)smk_pick_on();
+        hits = smk_pad_take();
+        if (smk_pad_pick && hits) {
+            uint32_t total, i;
+            (void)preset_pos(&total);
+            for (i = 0; i < 16u; i++)
+                if ((hits >> i & 1u) && smk_pick_base + i < total) {
+                    preset_go(smk_pick_base + i);
+                    smk_pick = 1;
+                    smk_pick_until = fm1_ms + 4000u;
+                }
+        }
+    }
     if (pressed & (1u << SMK_BTN_LEFT | 1u << SMK_BTN_RIGHT)) {   /* < >: SEQ held: the step pages; the visualiser:
                                                                 * its style; else the pages, as SELECT (never the tempo) */
         int32_t d = (pressed >> SMK_BTN_RIGHT) & 1u ? 1 : -1;
@@ -950,6 +998,15 @@ static void ui_input(void)
         } else {
             page_walk(d);
         }
+        ui.force = 1;
+    }
+    if (pressed & 1u << SMK_BTN_KNOB_BANK) {                    /* KNOB BANK: pin the pad picker */
+        uint32_t total, c;
+        smk_pick_pin = (uint8_t)!smk_pick_pin;
+        c = preset_pos(&total);
+        if (smk_pick_pin && total)
+            smk_pick_set(c);
+        ui_say("SOUND PADS", smk_pick_pin ? " ON" : " OFF");
         ui.force = 1;
     }
 #if SMK_FADERS
@@ -1094,8 +1151,15 @@ static void ui_input(void)
         uint32_t total, cur = preset_pos(&total);
         if (is_drum(TSEL))
             TDRUM->p[P_E0] = (int16_t)clamp(TDRUM->p[P_E0] + s, 0, DRUM_KITS - 1);
-        else if (total)
+        else if (total) {
+#if BOARD_SMK37
+            uint32_t t2;
+#endif
             preset_go((uint32_t)(((int32_t)cur + s % (int32_t)total + (int32_t)total) % (int32_t)total));
+#if BOARD_SMK37
+            smk_pick_set(preset_pos(&t2));              /* the picker: 16 sounds on the pads */
+#endif
+        }
     }
 #if CLIPPER_SYNTH
     if ((s = panel_enc(EN_ALGO)) != 0 && (ui.home || cur_page()->graph == GR_BROWSE))
