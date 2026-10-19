@@ -36,6 +36,19 @@ static int32_t batt_shown(void)
     return batt_level();
 }
 
+/* SMK-37 Pro: the volume. K1 is the MASTER pot (smk_input.h); while it moves the top bar
+ * shows "MASTER" and its level for a moment, then the normal bar comes back. */
+#if BOARD_SMK37
+static uint32_t smk_vol_t;                     /* ui.frame it ends at (0: not shown) */
+static int32_t smk_vol_pct;
+static void smk_vol_show(int32_t pct)
+{
+    smk_vol_pct = pct < 0 ? 0 : pct > 100 ? 100 : pct;
+    smk_vol_t = ui.frame + 60u;                /* ~1 s of frames */
+    ui.force = 1;
+}
+#endif
+
 /* top bar: transport, BPM, octave | USB, battery, CPU; messages replace it */
 static void draw_head(void)
 {
@@ -47,6 +60,9 @@ static void draw_head(void)
                    (uint32_t)TSEL->p[P_AMODE] * 7u + (uint32_t)TSEL->p[P_AHOLD] * 17u +
                    (ui.msg_t ? str_hash(7u, ui.msg) : 0u) + (uint32_t)song.g[G_BPM] * 101u + (ui.bpm_t != 0) * 31u +
                    (uint32_t)batt_shown() * 7777u + (usb.config && !usb.suspended) * 99991u;
+#if BOARD_SMK37
+    sig += (int32_t)(smk_vol_t - ui.frame) > 0 ? 0x5A5A0000u + (uint32_t)smk_vol_pct * 131u : 0u;
+#endif
     if (!ui.force && sig == ui.head_sig)
         return;
     ui.head_sig = sig;
@@ -56,6 +72,19 @@ static void draw_head(void)
         cv_blit(0, Y_HEAD);
         return;
     }
+#if BOARD_SMK37
+    if ((int32_t)(smk_vol_t - ui.frame) > 0) {         /* the volume, while K1 moves */
+        char v[8];
+        cv_text(4, 1, &FONT_S, "MASTER", C_HI);
+        cv_rect(64, 4, 150, 9, C_GRAY);
+        if (smk_vol_pct)
+            cv_rect(66, 6, (uint32_t)smk_vol_pct * 146u / 100u, 5, C_HI);
+        fmt_int(v, smk_vol_pct);
+        cv_text(220, 1, &FONT_S, v, C_HI);
+        cv_blit(0, Y_HEAD);
+        return;
+    }
+#endif
     if (song.playing) {                               /* > play, square stop */
         for (i = 0; i < 5u; i++)
             cv_rect(4 + (int32_t)i * 2, 4 + (int32_t)i, 2, 10 - 2 * (int32_t)i, C_WHITE);

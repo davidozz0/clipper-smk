@@ -374,6 +374,14 @@ EXPORT void web_key(uint32_t k, uint32_t vel)            /* one key, by velocity
 EXPORT void web_pad(uint32_t pad, uint32_t vel)           /* a pad hit (vel 1..127) or a release (0) */
 {
     int32_t n0;
+    if (pad >= SMK_NPAD)
+        return;
+    if (smk_pad_pick) {                                 /* the sound picker has the pads (smk_input.h's
+                                                         * smk__padq): the hit goes to the UI, no note */
+        if (vel)
+            smk_pad_hits |= (uint8_t)(1u << pad);
+        return;
+    }
     uint32_t n, bit;
     if (pad >= SMK_NPAD)
         return;

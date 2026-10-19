@@ -970,6 +970,16 @@ static void ui_input(void)
 {
     uint32_t pressed = fm1_input_edges(0), notes = fm1_input_note_edges(), now = fm1_ticks(), id, b, k;
 #if BOARD_SMK37
+    {   /* the volume: K1 moves the MASTER pot (smk_input.h reads it as an ADC channel) */
+        static int32_t last_q = -1;
+        int32_t q = song.master_q12;
+        if (last_q < 0)
+            last_q = q;                             /* (the first pass: no overlay at boot) */
+        else if (q != last_q) {
+            last_q = q;
+            smk_vol_show((q * 100 + 2048) / 4096);
+        }
+    }
     {   /* the pad picker: its hits, and the 4 s it stays up */
         uint8_t hits;
         if (smk_pick && !smk_pick_pin && (int32_t)(fm1_ms - smk_pick_until) >= 0)
