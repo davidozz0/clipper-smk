@@ -261,10 +261,8 @@ static void web_frame(void)
         if (b > 0)
             song.batt_raw = song.batt_raw ? song.batt_raw + (b - song.batt_raw) / 32 : b;
         if (a >= 0) {
-            uint32_t k10;
-            knob += ((uint32_t)a * 16u - knob) / 8u;
-            k10 = knob / 16u;
-            song.master_q12 = (k10 * k10) >> 8;
+            (void)knob;
+            song.master_q12 = ((uint32_t)a * (uint32_t)a) >> 8;   /* K1: an encoder, no smoothing */
         }
     }
 #if CLIPPER_SYNTH
@@ -386,6 +384,8 @@ EXPORT void web_pad(uint32_t pad, uint32_t vel)           /* a pad hit (vel 1..1
     if (pad >= SMK_NPAD)
         return;
     n0 = (int32_t)SMK_WHITE_NOTE[SMK_WHITE_OF_PAD(pad)];
+    fm1_in.pad_st[pad] = vel ? 0x80u : 0u;              /* what ui_leds reads: the pad's own press */
+    fm1_in.pad_press[pad] = (uint8_t)(vel > 127u ? 127u : vel);
     if (vel) {
         smk_pad_note[pad] = (uint8_t)(n0 + 1);
     } else {

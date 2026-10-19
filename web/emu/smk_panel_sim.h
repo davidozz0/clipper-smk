@@ -52,6 +52,8 @@ static struct {
     uint8_t  fader[4];
     uint16_t fad_raw[4];
     uint16_t wheel[2];               /* raw: [0] pitch (its rest is the centre), [1] mod (low = up, as stock) */
+    uint8_t  pad_st[SMK_NPAD];       /* 0x80 = down (what ui_leds reads for the pad's own light) */
+    uint8_t  pad_press[SMK_NPAD];    /* 0..127 while down */
     uint16_t pedal, batt;
     uint32_t frames;
     uint32_t adc_ok, adc_miss;

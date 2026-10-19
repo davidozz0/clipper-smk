@@ -356,13 +356,23 @@ static void ui_leds(void)
                     padled_set(p, 0, 0, 0);
                 }
             }
-        } else {                                   /* the track's colour: lit bright; playing, its steps normal */
+        } else if (ui.layer == LY_STEP) {          /* SEQ held: the step grid, the playhead and the hits */
             for (c = 0; c < 16u; c++) {
-                uint32_t id = LED_KEY(key_of_white(c)), sh = nl[id] ? 1u : (ui.layer == LY_PLAY && dl[id]) ? 3u : 0u;
+                uint32_t id = LED_KEY(key_of_white(c)), sh = nl[id] ? 1u : dl[id] ? 3u : 0u;
                 if (sh)
                     padled_set(SMK_PAD_OF_WHITE(c), (uint8_t)(col[0] >> sh), (uint8_t)(col[1] >> sh), (uint8_t)(col[2] >> sh));
                 else
                     padled_set(SMK_PAD_OF_WHITE(c), 0, 0, 0);
+            }
+        } else {                                   /* PLAY: a pad lights only while it is held */
+            for (c = 0; c < 16u; c++) {
+                uint32_t p = SMK_PAD_OF_WHITE(c);
+                if (fm1_in.pad_st[p] & 0x80u) {    /* this pad is down: the track's colour, by the pressure */
+                    uint32_t k = 1u + (uint32_t)fm1_in.pad_press[p] / 32u;     /* 1..4 */
+                    padled_set(p, (uint8_t)((uint32_t)col[0] * k / 4u), (uint8_t)((uint32_t)col[1] * k / 4u),
+                               (uint8_t)((uint32_t)col[2] * k / 4u));
+                } else
+                    padled_set(p, 0, 0, 0);
             }
         }
     }

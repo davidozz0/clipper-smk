@@ -364,10 +364,18 @@ static void fm1_main(void)
         {
             int32_t a = fm1_adc_read(FM1_ADC_MASTER);
             if (a >= 0) {
+#if BOARD_SMK37
+                /* K1 is an encoder: its value is already a clean step (24 a detent). The IIR below is for
+                 * the FM-1's analog pot (ADC noise) and on the SMK made the level glide on after the knob
+                 * had stopped. The audio still ramps within the block (fx.c), so no zipper noise. */
+                song.master_q12 = ((uint32_t)a * (uint32_t)a) >> 8;   /* 0 .. ~4096 */
+                (void)knob;
+#else
                 uint32_t k10;
                 knob += (a * 16 - knob) / 8;
                 k10 = (uint32_t)(knob / 16);
                 song.master_q12 = (k10 * k10) >> 8;            /* 0 .. ~4096 */
+#endif
             }
         }
         {   /* OCT- + OCT+ held 5 s, stopped: enter UBOOT with RAM intact (debug / update); a countdown
