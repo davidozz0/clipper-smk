@@ -1172,14 +1172,9 @@ static void ui_input(void)
         else if (total) {
 #if BOARD_SMK37
             {   /* the SMK: PRESETS stays inside the family shown (ALGORITHM changes family) */
-                uint32_t t2, lo, hi;
-                int32_t n = (int32_t)cur + s;
-                preset_range(cur, &lo, &hi);
-                if (n < (int32_t)lo)
-                    n = (int32_t)lo;
-                if (n > (int32_t)hi)
-                    n = (int32_t)hi;
-                if ((uint32_t)n != cur)
+                uint32_t t2;
+                int32_t n = kind_step(cur, s);          /* the next / previous sound of this kind */
+                if (n >= 0)
                     preset_go((uint32_t)n);
                 else
                     ui_message(preset_kind(cur));       /* at the edge: say which family this is */
