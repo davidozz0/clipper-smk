@@ -312,12 +312,12 @@ static void ui_leds(void)
             uint32_t total, cur = preset_pos(&total), i;
             for (i = 0; i < 16u; i++) {
                 uint32_t p = SMK_PAD_OF_WHITE(i), idx = smk_pick_base + i;
-                if (idx >= total)
-                    padled_set(p, 0, 0, 0);
-                else if (idx == cur)
-                    padled_set(p, 120, 120, 120);
+                if (fm1_in.pad_st[p] & 0x80u)
+                    padled_set(p, col[0], col[1], col[2]);      /* the pad you touch: its own colour */
+                else if (idx < total && idx == cur)
+                    padled_set(p, 120, 120, 120);               /* the sound that is loaded */
                 else
-                    padled_set(p, (uint8_t)(col[0] >> 3), (uint8_t)(col[1] >> 3), (uint8_t)(col[2] >> 3));
+                    padled_set(p, 0, 0, 0);
             }
         } else if (ui.layer == LY_SCALE) {                /* white and black keys lit white, the scale green, its root brighter */
             uint32_t sk = scale_keys(0), rk = scale_keys(1);
@@ -364,14 +364,12 @@ static void ui_leds(void)
                 else
                     padled_set(SMK_PAD_OF_WHITE(c), 0, 0, 0);
             }
-        } else {                                   /* PLAY: a pad lights only while it is held */
+        } else {                                   /* PLAY: a pad lights only while it is held, one colour */
             for (c = 0; c < 16u; c++) {
                 uint32_t p = SMK_PAD_OF_WHITE(c);
-                if (fm1_in.pad_st[p] & 0x80u) {    /* this pad is down: the track's colour, by the pressure */
-                    uint32_t k = 1u + (uint32_t)fm1_in.pad_press[p] / 32u;     /* 1..4 */
-                    padled_set(p, (uint8_t)((uint32_t)col[0] * k / 4u), (uint8_t)((uint32_t)col[1] * k / 4u),
-                               (uint8_t)((uint32_t)col[2] * k / 4u));
-                } else
+                if (fm1_in.pad_st[p] & 0x80u)
+                    padled_set(p, col[0], col[1], col[2]);
+                else
                     padled_set(p, 0, 0, 0);
             }
         }
