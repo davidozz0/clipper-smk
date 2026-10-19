@@ -91,8 +91,10 @@ static const uint8_t SMK_PADMUX[8] = {1, 2, 3, 0, 4, 7, 5, 6};
 static const uint8_t SMK_FADMUX[4] = {1, 2, 3, 0};
 enum { SMK_ADC_PADA = 1, SMK_ADC_PADB = 8, SMK_ADC_MUXC = 2 };
 /* the pads are the 16 white keys of the FM-1's 27 (F3 G3 A3 B3 C4 D4 E4 F4 G4 A4 B4 C5 D5 E5 F5 G5): the step
- * grid, the drum sounds and every layer's tiles land on them, in reading order: the top row (hardware pads 8..15,
- * mux B; confirmed on a unit) white keys 0..7, the bottom row (pads 0..7, mux A) 8..15 */
+ * grid, the drum sounds and every layer's tiles land on them, in reading order: the TOP row is hardware pads 0..7
+ * (mux A) and the BOTTOM row pads 8..15 (mux B) -- padtest on this unit, 2026-10-19: pads 8..11 lit the bottom row.
+ * The 2.5 layer had the two rows the other way round; the six grid/picker layouts below use the pad index directly
+ * (1..8 on the top row), the white-key swap stays for the pads-as-keyboard layout. */
 static const uint8_t SMK_WHITE_NOTE[SMK_NPAD] = {0, 2, 4, 6, 7, 9, 11, 12, 14, 16, 18, 19, 21, 23, 24, 26};
 #define SMK_PAD_OF_WHITE(w) ((w) < 8u ? (w) + 8u : (w) - 8u)   /* white key 0..15 -> hardware pad */
 /* the piano layout (the UI sets smk_pad_piano, e.g. for SCALE): bottom row C4 D4 E4 F4 G4 A4 B4 C5, top row the

@@ -311,7 +311,7 @@ static void ui_leds(void)
         if (smk_pick_on()) {                       /* the sound picker: 16 sounds, the current one bright */
             uint32_t total, cur = preset_pos(&total), i;
             for (i = 0; i < 16u; i++) {
-                uint32_t p = SMK_PAD_OF_WHITE(i), idx = smk_pick_base + i;
+                uint32_t p = i, idx = smk_pick_base + i;      /* reading order: 1..8 on the top row */
                 if (fm1_in.pad_st[p] & 0x80u)
                     padled_set(p, col[0], col[1], col[2]);      /* the pad you touch: its own colour */
                 else if (idx < total && idx == cur)
@@ -356,13 +356,13 @@ static void ui_leds(void)
                     padled_set(p, 0, 0, 0);
                 }
             }
-        } else if (ui.layer == LY_STEP) {          /* SEQ held: the step grid, the playhead and the hits */
+        } else if (ui.layer == LY_STEP) {          /* SEQ held: the step grid (1..8 on the top row), playhead, hits */
             for (c = 0; c < 16u; c++) {
                 uint32_t id = LED_KEY(key_of_white(c)), sh = nl[id] ? 1u : dl[id] ? 3u : 0u;
                 if (sh)
-                    padled_set(SMK_PAD_OF_WHITE(c), (uint8_t)(col[0] >> sh), (uint8_t)(col[1] >> sh), (uint8_t)(col[2] >> sh));
+                    padled_set(c, (uint8_t)(col[0] >> sh), (uint8_t)(col[1] >> sh), (uint8_t)(col[2] >> sh));
                 else
-                    padled_set(SMK_PAD_OF_WHITE(c), 0, 0, 0);
+                    padled_set(c, 0, 0, 0);
             }
         } else {                                   /* PLAY: a pad lights only while it is held, one colour */
             for (c = 0; c < 16u; c++) {

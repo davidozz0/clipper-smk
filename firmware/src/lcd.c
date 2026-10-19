@@ -157,17 +157,19 @@ static void lcd_init(void)
 
 #if BOARD_SMK37
 /* The 16 RGB pads (SMK-37 Pro): WS2812-class LEDs on SPI1 group B (PC10), one SPI byte per
- * LED bit (0xF0 = 1, 0xC0 = 0, MSB first, GRB), 36 zero bytes of latch first: 420 bytes, as
- * the stock firmware sends them. The frame goes out between LCD transfers (LCD CS high),
- * blocking for ~0.5 ms; padled_flush() only sends when a colour changed. */
+ * LED bit (0xF0 = 1, 0xC0 = 0, MSB first, GRB). The reset before the frame is 256 zero bytes
+ * (~300 us at 1.2 us a bit): the stock 36 (the 80 us of the old parts) was too short for these
+ * LEDs when the frame follows an LCD transfer, and a glitch shifts the chain by a bit -- the pad
+ * next to the one playing lights, in a wrong colour (it happened on a unit, 2026-10-19: the pad
+ * after the one hit flashed green). The frame goes out between LCD transfers (LCD CS high),
+ * blocking for ~0.8 ms; padled_flush() only sends when a colour changed. */
 #define PADLED_N 16u
-#define PADLED_LATCH 36u
+#define PADLED_LATCH 256u
 static uint8_t padled_buf[PADLED_LATCH + PADLED_N * 24u];
 static uint32_t padled_rgb[PADLED_N];
 static uint8_t padled_dirty = 1;
 static uint32_t padled_hold_until;              /* (console padtest: the UI leaves the pads alone until then) */
-/* hardware pad (8..15 top row, 0..7 bottom row, left to right; smk_input.h SMK_PAD_OF_WHITE) -> position in
- * the chain (stock table) */
+/* hardware pad (0..7 top row, 8..15 bottom row, left to right; smk_input.h) -> position in the chain (stock) */
 static const uint8_t PADLED_SLOT[PADLED_N] = {0, 15, 14, 13, 12, 11, 10, 9, 1, 2, 3, 4, 5, 6, 7, 8};
 
 static void padled_set(uint32_t pad, uint8_t r, uint8_t g, uint8_t b)
