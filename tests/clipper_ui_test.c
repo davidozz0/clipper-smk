@@ -248,14 +248,17 @@ int main(int argc, char **argv)
         check(ok && total > 130u, "a program change loads that sound of the list; CC 0 picks the bank of 128");
         midi_in(0xB0u, 0, 0); midi_in(0xC0u, 0, 0); frames(2);
         check(base_pos(&total) == 0u && preset_pos(&total) == nf, "program 0 of bank 0: the first factory sound");
+        set_engine_of(TSEL, ENGI_HYBRID); apply_preset_to(TSEL, 0); frames(2);   /* (the engine order: program 0 is
+                                                                                  * ANALOG's first, not CLIPPER) */
         to_page(FAM_GLO, "MIDI");
         open_family(FAM_GLO); frame();
         check(!ui.home && !strcmp(cur_page()->title, "MIDI 2"), "GLO: then the MIDI 2 page");
         ui.force = 1; frame(); ppm("clipper-midi-2");
         frames(20);
         encs[panel.enc[EN_K1]] = -1; frame();
+        ok = (int)base_pos(&total);
         midi_in(0xC0u, 7, 0); frames(2);
-        check(midi_pc_off && base_pos(&total) == 0u, "MIDI 2 > PROG OFF: program changes ignored");
+        check(midi_pc_off && (int)base_pos(&total) == ok, "MIDI 2 > PROG OFF: program changes ignored");
         encs[panel.enc[EN_K1]] = 1; frame();
         check(!midi_pc_off, "PROG back ON");
         /* expression: the part's volume */
@@ -270,7 +273,8 @@ int main(int argc, char **argv)
         for (i2 = 0, on = 0; i2 < NVOICE; i2++) on += trk[0].v[i2].gate;
         check(on == 0u, "CC 123 all notes off: the note held lets go");
         midi_in(0x90u, 62, 100); frames(2); midi_in(0xB0u, 120, 0); frames(4);
-        check(voices_part(0) == 0u, "CC 120 all sound off: nothing left");
+        for (i2 = 0, on = 0; i2 < NVOICE; i2++) on += trk[0].v[i2].gate;   /* (1.1: a release tail may run on) */
+        check(on == 0u, "CC 120 all sound off: nothing left");
         midi_in(0xE0u, 0, 127); midi_in(0xB0u, 1, 90); midi_in(0xB0u, 11, 20); midi_in(0xB0u, 64, 127); frames(2);
         ok = part_ctl[0].bend != 0 && part_ctl[0].sus && part_ctl[0].exoff;
         midi_in(0xB0u, 121, 0); frames(2);

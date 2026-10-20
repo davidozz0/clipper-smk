@@ -1,3 +1,5 @@
+**SMK-37 Pro port (unofficial).** This tree carries the M-VAVE SMK-37 Pro port on top of Clipper 1.1: see [SMK37.md](SMK37.md) and the ready package in `dist/clipper-smk37.fwsc`. The upstream FM-1 build is unchanged.
+
 <p align="center"><img src="assets/logo/clipper-logo.png" alt="Clipper" width="460"></p>
 
 <p align="center"><b>A deep synthesizer firmware for the M-VAVE FM-1.</b><br>
