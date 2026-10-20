@@ -480,8 +480,20 @@ static int arp_param(uint32_t i) { return i >= P_AMODE && i <= P_AORDER; }
 #if CLIPPER_SYNTH
 static void hist_before_load(void);                  /* (0.7, ui_synth.c: the edits a step of their own, first) */
 #endif
+#if BOARD_SMK37
+/* the SMK's browser position: the list index the last K3/K4/picker went to. It cannot be derived from the
+ * sound (the names repeat across engines -- "REESE" is both HYBRID and ANALOG -- and base_pos keeps the last
+ * match), so PRESETS stepped past its family and never stopped. apply_preset_to clears it: the sound changed
+ * by another way (an engine page, a project, a layer), so the index is stale. */
+static uint32_t smk_pos;
+static uint8_t smk_pos_ok;
+#endif
+
 static void apply_preset_to(track_t *t, uint32_t pi)
 {
+#if BOARD_SMK37
+    smk_pos_ok = 0;                                  /* (preset_go sets it again after this call) */
+#endif
     const engine_t *e = ENGINES[t->eng_req % NENGINES];
     uint32_t i;
     int keep_arp = arp_user_on(t), kbd_hold = !t->p[P_AMODE] && t->p[P_AHOLD];   /* (1.0: the player's arp only) */
@@ -564,6 +576,7 @@ static void set_engine_of(track_t *t, uint32_t ei)
 }
 
 static void apply_preset(uint32_t pi) { apply_preset_to(TSEL, pi); }
+
 static void set_engine(uint32_t ei) { set_engine_of(TSEL, ei); }
 
 static void track_defaults(track_t *t)
@@ -904,12 +917,20 @@ static void preset_go(uint32_t n)                    /* load list index n into t
     fav_at = (int8_t)(n < fav_list(b) ? (int32_t)n : -1);
     if (e == NENGINES) {
         up_load(k);
+#if BOARD_SMK37
+        smk_pos = n;
+        smk_pos_ok = 1;
+#endif
         return;
     }
     if (e != TSEL->eng_req)
         select_engine(e);
     apply_preset(k);
     ui.force = 1;
+#if BOARD_SMK37
+    smk_pos = n;                                     /* (base_pos would give the last same-named entry) */
+    smk_pos_ok = 1;
+#endif
 }
 
 /* 1.0 (a comment: "KNOB 2 just jumps to a preset of that engine, the list is not filtered"): the PRESETS page's
@@ -1002,6 +1023,63 @@ static uint32_t kind_at(uint32_t n)                  /* (0.7: the favourites fir
     uint32_t b[FAV_N], nf = fav_list(b);
     return n < nf ? 0xFEu : n - nf < NBANK ? BANK[n - nf].kind : 0xFFu;
 }
+#if BOARD_SMK37
+/* The SMK: the sounds' families. The table is NOT contiguous (the newer sounds were appended with their kind,
+ * so a kind comes back later in the list), so a family is "every sound of this kind", wherever it is.
+ * ALGORITHM walks the kinds in the order they first appear and lands on the first sound of the next one;
+ * PRESETS steps to the next sound of the same kind (kind_step) and stops at its edges. */
+static uint32_t kind_ring(uint32_t *out, uint32_t max)      /* the kinds, first appearance first */
+{
+    uint32_t total = 0, n, i, m = 0;
+    (void)preset_pos(&total);
+    for (n = 0; n < total && m < max; n++) {
+        uint32_t k = kind_at(n);
+        for (i = 0; i < m && out[i] != k; i++)
+            ;
+        if (i == m)
+            out[m++] = k;
+    }
+    return m;
+}
+static uint32_t kind_start(uint32_t k)                      /* the first sound of a kind */
+{
+    uint32_t total = 0, n;
+    (void)preset_pos(&total);
+    for (n = 0; n < total; n++)
+        if (kind_at(n) == k)
+            return n;
+    return 0;
+}
+static int32_t kind_step(uint32_t cur, int32_t s)           /* the next / previous sound of this kind, -1 at the edge */
+{
+    uint32_t total = 0, n, k = kind_at(cur);
+    (void)preset_pos(&total);
+    if (s > 0) {
+        for (n = cur + 1u; n < total; n++)
+            if (kind_at(n) == k)
+                return (int32_t)n;
+    } else {
+        for (n = cur; n-- > 0u; )
+            if (kind_at(n) == k)
+                return (int32_t)n;
+    }
+    return -1;
+}
+static void preset_kind_jump(int32_t s)
+{
+    uint32_t ring[16], total, cur = preset_pos(&total), m, i;
+    if (is_drum(TSEL) || total < 2u)
+        return;
+    m = kind_ring(ring, 16u);
+    if (!m)
+        return;
+    for (i = 0; i < m && ring[i] != kind_at(cur); i++)       /* the kind shown */
+        ;
+    i = i >= m ? 0u : s > 0 ? (i + 1u) % m : (i + m - 1u) % m;
+    preset_go(kind_start(ring[i]));
+    ui_message(preset_kind(kind_start(ring[i])));
+}
+#else
 static void preset_kind_jump(int32_t s)
 {
     uint32_t total, cur = preset_pos(&total), n = cur, k;
@@ -1024,6 +1102,7 @@ static void preset_kind_jump(int32_t s)
     preset_go(n);
     ui_message(preset_kind(n));
 }
+#endif
 
 /* HOME: what KNOB k edits: the engine's four main parameters; on the drum track
  * LEVEL and REV (GLO > DRUMS), PAN and LEN */

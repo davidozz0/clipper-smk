@@ -28,12 +28,16 @@
 #undef memset
 #undef memcpy
 #undef memcmp
+#ifndef FM1_IN_EXTERN
 static struct { volatile uint32_t notes, buttons; } fm1_in;
 static void fm1_irq_off(void) {}                 /* (the host: one thread) */
 static void fm1_irq_on(void) {}
+#endif
 #include "../firmware/src/core.h"
 #include "../firmware/src/cpu1.h"
+#ifndef FM1_IN_EXTERN
 #include "cpu1_host.c"                  /* the second core on the host: CORES=1 inline, CORES=2 a thread */
+#endif
 #include "../firmware/src/engines.c"
 #include "../firmware/src/drums.c"
 #include "../firmware/src/params.c"
@@ -41,6 +45,7 @@ static void fm1_irq_on(void) {}
 #include "../firmware/src/slicer.c"
 #include "../firmware/src/fx.c"
 static void fm1_delay_ms(uint32_t ms) { (void)ms; }
+#include "../firmware/src/smk_trs.c"           /* SMK-37 Pro: TRS OUT hooks (stubs: no SMK_TRS_TARGET) */
 #include "../firmware/src/usb.c"
 #include "../firmware/src/midi_uart.c"                /* TRS MIDI IN: its parser (um_byte) feeds midi_in_q */
 #if FELUCCA_ARRANGER
@@ -75,6 +80,8 @@ static void wav_put(FILE *f, int32_t l, int32_t r)
     fwrite(s, 2, 2, f);
 }
 
+#ifndef FM1_IN_EXTERN
+/* (the browser bridge stops here: the command-line harness needs clock / getenv / stdio) */
 /* ---------------------------------------------------------------- TRACKS --- */
 static uint64_t now_ns(void)
 {
@@ -927,3 +934,4 @@ int main(int argc, char **argv)
     fclose(w);
     return 0;
 }
+#endif /* FM1_IN_EXTERN */

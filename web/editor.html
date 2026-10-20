@@ -4519,7 +4519,7 @@ const DSYN_MOCK_KITS = "AAEAHwYMIwRhfAAAGgAALAB/AAAACIgBATYAAxQAPGA5XBZkAEMjUgAA
  * often keep the port name of the first firmware they saw ("X0X FM-1", "USB-MIDI"...): the names the installer accepts
  * (fm1ota.js FM1_PORT, the same list), as in/out pairs of one name, "Clipper" / "Felucca" first, then FM-1, then the
  * generic names. connect() keeps the first pair that answers INFO, so a generic name of other gear is tried and left */
-const FM1_PORT = /fm-1|felucca|sloop|clipper|ota|composite|sinco|usb-midi/i;
+const FM1_PORT = /fm-1|smk|felucca|sloop|clipper|ota|composite|sinco|usb-midi/i;
 function fm1Ports(access) {
   const live = (p) => p.state !== "disconnected" && FM1_PORT.test(p.name || "");
   const ins = [...access.inputs.values()].filter(live), outs = [...access.outputs.values()].filter(live);
