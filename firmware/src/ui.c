@@ -597,9 +597,11 @@ static void select_engine(uint32_t e)
     ui.force = 1;
 }
 
-/* the factory presets as one list by kind (basses, keys, organs, pads, leads, plucks and bells, stabs,
- * the rest), then the used user presets: the PRESETS knob and the PRESETS page browse it. By name: an
- * engine's preset table may change order; tests/ui_pages_test.c checks every preset is here once */
+/* the factory presets, one contiguous block per engine in the engines' order (0 ANALOG .. 22 VECTOR),
+ * and inside a block by kind (basses, keys, organs, pads, leads, plucks and bells, stabs, the rest);
+ * then the used user presets: the PRESETS knob and the PRESETS page browse it, ALGORITHM walks the
+ * blocks. By name: an engine's preset table may change order; tests/ui_pages_test.c checks every
+ * preset is here once */
 enum { BK_BASS, BK_KEYS, BK_ORGAN, BK_PAD, BK_LEAD, BK_PLUCK, BK_STAB, BK_FX };
 static const char *const BANK_KIND[] = {"BASS", "KEYS", "ORGN", "PAD", "LEAD", "PLCK", "STAB", "FX"};
 /* the sample-based factory sounds (SAMPLE 4, GRAIN 8): not in the Clipper synth, which has no built-in samples */
@@ -609,161 +611,487 @@ static const char *const BANK_KIND[] = {"BASS", "KEYS", "ORGN", "PAD", "LEAD", "
 #define BK_SMP(k, e, n) {k, e, n},
 #endif
 static const struct { uint8_t kind, e; const char *name; } BANK[] = {
-    {BK_BASS, ENGI_HYBRID, "ACID"}, {BK_BASS, ENGI_HYBRID, "WOBBLE"}, {BK_BASS, ENGI_HYBRID, "REESE"}, {BK_BASS, ENGI_HYBRID, "FOLD BASS"},
-    {BK_BASS, ENGI_HYBRID, "808 SUB"},
-    {BK_BASS, 0, "808 BOOM"}, {BK_BASS, 0, "808 DIRTY"}, {BK_BASS, 0, "808 SLIDE"}, {BK_BASS, 0, "SUB BASS"},
-    {BK_BASS, 0, "PLUGG BASS"}, {BK_BASS, 0, "REESE"}, {BK_BASS, 0, "WOBBLE"}, {BK_BASS, 0, "ACID 303"},
-    {BK_BASS, 1, "FM BASS"}, {BK_BASS, 2, "CZ BASS"}, {BK_BASS, 6, "FAT BASS"}, {BK_BASS, 0, "FUNK BASS"},
-    {BK_BASS, 5, "WOW BASS"}, {BK_BASS, 3, "GB BASS"}, BK_SMP(BK_BASS, 4, "UP BASS") BK_SMP(BK_BASS, 4, "DEEP BASS")
-    {BK_BASS, ENGI_FM6, "ROUND BASS"}, {BK_BASS, 1, "BASS GTR"}, {BK_BASS, 0, "MONO BASS"},
-    {BK_BASS, ENGI_PHYS, "PLUCK BASS"}, {BK_BASS, 3, "NES BASS"}, {BK_BASS, 0, "SAW BASS"},
-    {BK_KEYS, ENGI_HYBRID, "FM KEYS"}, {BK_KEYS, 1, "RHODES"}, {BK_KEYS, 1, "DX RHODES"}, {BK_KEYS, 1, "WURLI"}, {BK_KEYS, 1, "M1 PIANO"},
-    {BK_KEYS, 1, "AFRO KEYS"}, BK_SMP(BK_KEYS, 4, "GRAND PNO") BK_SMP(BK_KEYS, 4, "DUSTY PNO") BK_SMP(BK_KEYS, 4, "LOFI KEYS")
-    {BK_KEYS, 2, "SOFT KEYS"}, {BK_KEYS, 1, "CLAV"}, {BK_KEYS, ENGI_FM6, "TINE EP"}, {BK_KEYS, 1, "FM GRAND"},
-    {BK_ORGAN, 7, "SOUL ORGAN"}, {BK_ORGAN, 7, "GOSPEL"}, {BK_ORGAN, 7, "JAZZ ORGAN"},
-    {BK_ORGAN, 7, "DIRTY B3"}, {BK_ORGAN, 7, "HOUSE ORGN"}, {BK_ORGAN, ENGI_FM6, "DRAWBARS"},
-    {BK_ORGAN, 6, "ACCORDION"}, {BK_ORGAN, 7, "ROCK ORGAN"}, {BK_ORGAN, 7, "CHAPEL"},
-    {BK_ORGAN, 7, "REGGAE ORG"}, {BK_PAD, ENGI_HYBRID, "CLIPPER"},
-    {BK_PAD, ENGI_HYBRID, "POLY PAD"}, {BK_PAD, ENGI_HYBRID, "STRINGS"}, {BK_PAD, ENGI_HYBRID, "VOX"}, {BK_PAD, ENGI_HYBRID, "GLASS PAD"},
-    {BK_PAD, ENGI_HYBRID, "DRONE"}, {BK_PAD, 0, "WARM PAD"}, {BK_PAD, 6, "SAW PAD"}, {BK_PAD, 1, "GLASS PAD"},
-    {BK_PAD, 0, "DARK STR"}, {BK_PAD, 2, "CZ STRING"}, {BK_PAD, 0, "ATMOS PAD"}, BK_SMP(BK_PAD, 8, "LOFI CLOUD")
-    BK_SMP(BK_PAD, 8, "VIBE HAZE") {BK_PAD, 5, "CHOIR AAH"}, {BK_PAD, 5, "SOUL OOH"}, {BK_PAD, ENGI_FM6, "SOFT PAD"},
-    {BK_PAD, 6, "ENSEMBLE"}, BK_SMP(BK_PAD, 8, "STR CLOUD") BK_SMP(BK_PAD, 8, "SHIMMER") BK_SMP(BK_PAD, 8, "DRONE")
-    {BK_PAD, ENGI_PHYS, "BOWED MTL"}, {BK_PAD, ENGI_NOISE, "WIND"}, {BK_PAD, ENGI_PHYS, "CELLO BOW"},
-    {BK_PAD, ENGI_PHYS, "GLASS BOWL"}, {BK_PAD, ENGI_NOISE, "OCEAN"}, {BK_PAD, 2, "CZ PAD"},
-    {BK_PAD, 5, "VOX PAD"}, BK_SMP(BK_PAD, 8, "PNO FREEZE") BK_SMP(BK_PAD, 8, "HORN CLOUD") {BK_PAD, 0, "SINE PAD"},
-    {BK_PAD, 6, "PULSE PAD"}, {BK_LEAD, ENGI_HYBRID, "SYNC LEAD"}, {BK_LEAD, ENGI_HYBRID, "HOOVER"},
-    {BK_LEAD, ENGI_HYBRID, "CHIP LEAD"}, {BK_LEAD, ENGI_HYBRID, "TRANCE"}, {BK_LEAD, 0, "SUPERSAW"}, {BK_LEAD, 0, "G-FUNK LD"}, {BK_LEAD, 6, "SYNC LEAD"},
-    {BK_LEAD, 6, "HOOVER"}, {BK_LEAD, 5, "TALKBOX"}, {BK_LEAD, 3, "GAME LEAD"}, BK_SMP(BK_LEAD, 4, "LOFI FLUTE")
-    BK_SMP(BK_LEAD, 8, "FLUTE DUST") {BK_LEAD, 0, "FAT LEAD"}, {BK_LEAD, 0, "PAN FLUTE"}, {BK_LEAD, 5, "HARMONICA"},
-    {BK_LEAD, ENGI_NOISE, "NZ ARCADE"}, {BK_LEAD, 3, "WAVE LEAD"}, {BK_LEAD, 2, "CZ LEAD"},
-    {BK_LEAD, 5, "ROBOT"}, {BK_LEAD, 0, "PWM LEAD"}, {BK_LEAD, 6, "SQR LEAD"}, {BK_PLUCK, ENGI_HYBRID, "PLUCK"},
-    {BK_PLUCK, ENGI_HYBRID, "SAW PLUCK"}, {BK_PLUCK, ENGI_HYBRID, "FM BELL"}, {BK_PLUCK, ENGI_HYBRID, "SPACE BEL"}, {BK_PLUCK, ENGI_HYBRID, "METAL"},
+    /* ---- 0 ANALOG ---- */
+    {BK_BASS, 0, "808 BOOM"},
+    {BK_BASS, 0, "808 DIRTY"},
+    {BK_BASS, 0, "808 SLIDE"},
+    {BK_BASS, 0, "SUB BASS"},
+    {BK_BASS, 0, "PLUGG BASS"},
+    {BK_BASS, 0, "REESE"},
+    {BK_BASS, 0, "WOBBLE"},
+    {BK_BASS, 0, "ACID 303"},
+    {BK_BASS, 0, "FUNK BASS"},
+    {BK_BASS, 0, "MONO BASS"},
+    {BK_BASS, 0, "SAW BASS"},
+    {BK_BASS, 0, "MINI BASS"},
+    {BK_PAD, 0, "WARM PAD"},
+    {BK_PAD, 0, "DARK STR"},
+    {BK_PAD, 0, "ATMOS PAD"},
+    {BK_PAD, 0, "SINE PAD"},
+    {BK_LEAD, 0, "SUPERSAW"},
+    {BK_LEAD, 0, "G-FUNK LD"},
+    {BK_LEAD, 0, "FAT LEAD"},
+    {BK_LEAD, 0, "PAN FLUTE"},
+    {BK_LEAD, 0, "PWM LEAD"},
+    {BK_LEAD, 0, "MINI LEAD"},
     {BK_PLUCK, 0, "TRAP PLUCK"},
-    {BK_PLUCK, 2, "RESO PLUCK"}, {BK_PLUCK, 1, "PLUGG BELL"}, {BK_PLUCK, 1, "TRAP BELL"},
-    {BK_PLUCK, 1, "MUSIC BOX"}, {BK_PLUCK, 1, "KALIMBA"}, {BK_PLUCK, 1, "MARIMBA"}, BK_SMP(BK_PLUCK, 4, "VIBES")
-    {BK_PLUCK, 3, "8BIT ARP"}, {BK_PLUCK, ENGI_FM6, "GLASS BELL"}, {BK_PLUCK, ENGI_FM6, "WOOD BARS"},
-    {BK_PLUCK, ENGI_FM6, "NYLON PICK"}, {BK_PLUCK, 1, "HARP"}, {BK_PLUCK, 1, "STEEL DRUM"},
-    {BK_PLUCK, 1, "GLOCKEN"}, {BK_PLUCK, 1, "CELESTA"}, {BK_PLUCK, 1, "XYLOPHONE"},
-    {BK_PLUCK, ENGI_PHYS, "STR PLUCK"}, {BK_PLUCK, ENGI_PHYS, "SITAR"}, {BK_PLUCK, ENGI_PHYS, "PHYS HARP"},
-    {BK_PLUCK, ENGI_PHYS, "BELL TREE"}, {BK_PLUCK, ENGI_PHYS, "MODAL BAR"}, {BK_PLUCK, ENGI_PHYS, "THUMB PNO"},
-    {BK_PLUCK, ENGI_PHYS, "NYLON GTR"}, {BK_PLUCK, ENGI_PHYS, "STEEL GTR"}, {BK_PLUCK, ENGI_PHYS, "MUTED GTR"},
-    {BK_PLUCK, ENGI_PHYS, "KOTO"}, {BK_PLUCK, ENGI_PHYS, "BANJO"}, {BK_PLUCK, ENGI_PHYS, "TANPURA"},
-    {BK_PLUCK, ENGI_PHYS, "CHIMES"}, {BK_PLUCK, ENGI_PHYS, "BIG BELL"}, {BK_PLUCK, ENGI_PHYS, "VIBRA BAR"},
-    {BK_PLUCK, ENGI_PHYS, "STEEL PAN"}, {BK_PLUCK, ENGI_PHYS, "WOOD BLOCK"}, {BK_PLUCK, 3, "1BIT BEEP"},
-    {BK_PLUCK, 2, "CZ RESO"}, {BK_PLUCK, 1, "TUBE BELL"}, {BK_PLUCK, 1, "FM PLUCK"}, {BK_STAB, ENGI_HYBRID, "BRASS"},
-    {BK_STAB, 6, "MIN STAB"},
-    {BK_STAB, 6, "MIN7 STAB"}, {BK_STAB, 6, "RAVE STAB"}, {BK_STAB, 6, "DUB CHORD"}, {BK_STAB, 0, "SYN BRASS"},
-    {BK_STAB, 2, "CZ BRASS"}, BK_SMP(BK_STAB, 4, "HORN STAB") BK_SMP(BK_STAB, 4, "STRING STB")
-    {BK_STAB, ENGI_FM6, "BRASS SECT"}, {BK_STAB, 6, "80S POLY"}, {BK_STAB, 3, "CHIP CHORD"},
-    {BK_STAB, 6, "POWER STAB"}, BK_SMP(BK_FX, 4, "SCRATCH") BK_SMP(BK_FX, 4, "GM KIT") {BK_FX, ENGI_PHYS, "HAND DRUM"},
-    {BK_FX, ENGI_PHYS, "MEMB TOMS"}, {BK_FX, ENGI_NOISE, "RAIN"}, {BK_FX, ENGI_NOISE, "NZ METAL"},
-    {BK_FX, ENGI_PHYS, "TABLA"}, {BK_FX, ENGI_PHYS, "CONGA"}, {BK_FX, ENGI_PHYS, "TIMPANI"},
-    {BK_FX, ENGI_NOISE, "VINYL"}, {BK_FX, ENGI_NOISE, "HISS"}, {BK_FX, ENGI_NOISE, "RISER"},
-    {BK_FX, ENGI_NOISE, "NZ SNARE"}, {BK_FX, ENGI_NOISE, "BITCRUSH"}, {BK_FX, ENGI_NOISE, "RADIO"},
-    {BK_FX, 3, "CHIP NOISE"}, {BK_FX, ENGI_HYBRID, "RISER"}, {BK_FX, ENGI_HYBRID, "INIT"},
-#if CLIPPER_SYNTH                                    /* Clipper 0.2: WAVE, the wavetables */
-    {BK_PAD, ENGI_WAVE, "PPG PAD"}, {BK_PAD, ENGI_WAVE, "WT SWEEP"}, {BK_PAD, ENGI_WAVE, "VOCAL WT"},
-    {BK_PAD, ENGI_WAVE, "HARMONICS"}, {BK_PAD, ENGI_WAVE, "COMB PAD"}, {BK_PAD, ENGI_WAVE, "PWM STR"},
-    {BK_BASS, ENGI_WAVE, "SYNC BASS"}, {BK_BASS, ENGI_WAVE, "FM GROWL"}, {BK_LEAD, ENGI_WAVE, "WT BASIC"},
-    {BK_LEAD, ENGI_WAVE, "RESO SWP"}, {BK_LEAD, ENGI_WAVE, "FOLD LEAD"}, {BK_LEAD, ENGI_WAVE, "CHIP WT"},
-    {BK_PLUCK, ENGI_WAVE, "DIGI BELL"}, {BK_KEYS, ENGI_WAVE, "CZ WAVE"}, {BK_ORGAN, ENGI_WAVE, "ORGAN WT"},
-    {BK_FX, ENGI_WAVE, "USER WT"},
-    /* Clipper 0.2: ACID, STRINGS, MACRO */
-    {BK_BASS, ENGI_ACID, "ACID LINE"}, {BK_BASS, ENGI_ACID, "SQUELCH"}, {BK_BASS, ENGI_ACID, "SQR ACID"},
-    {BK_BASS, ENGI_ACID, "DEEP 303"}, {BK_BASS, ENGI_ACID, "RUBBER"}, {BK_BASS, ENGI_ACID, "DIST ACID"},
-    {BK_LEAD, ENGI_ACID, "ACID LEAD"}, {BK_BASS, ENGI_ACID, "BUBBLE"},
-    {BK_PAD, ENGI_STRINGS, "SOLINA"}, {BK_PAD, ENGI_STRINGS, "VIOLINS"}, {BK_PAD, ENGI_STRINGS, "CELLOS"},
-    {BK_PAD, ENGI_STRINGS, "ENSEMBLE"}, {BK_PAD, ENGI_STRINGS, "STR MACHINE"}, {BK_PAD, ENGI_STRINGS, "GLASS STR"},
-    {BK_PAD, ENGI_STRINGS, "DARK ENS"}, {BK_PAD, ENGI_STRINGS, "PULSE STR"},
-    {BK_STAB, ENGI_MACRO, "CHORD STAB"}, {BK_KEYS, ENGI_MACRO, "MAJ7 KEYS"}, {BK_PAD, ENGI_MACRO, "M9 PAD"},
-    {BK_PAD, ENGI_MACRO, "SWARM"}, {BK_BASS, ENGI_MACRO, "SWARM SUB"}, {BK_KEYS, ENGI_MACRO, "ADDITIVE"},
-    {BK_ORGAN, ENGI_MACRO, "HARMONIUM"}, {BK_PLUCK, ENGI_MACRO, "BELL TONE"}, {BK_PLUCK, ENGI_MACRO, "PING"},
-    {BK_LEAD, ENGI_MACRO, "YEAH"}, {BK_BASS, ENGI_MACRO, "WOW BASS"}, {BK_FX, ENGI_MACRO, "VOWELS"},
-    /* Clipper 0.3: a hundred more */
-    {BK_PAD, 0, "JUNO PAD"}, {BK_STAB, 0, "OBX BRASS"}, {BK_BASS, 0, "TAURUS"}, {BK_LEAD, 0, "PROPH LEAD"},
-    {BK_STAB, 0, "UNI STAB"}, {BK_PLUCK, 0, "SQR PLUCK"}, {BK_BASS, 0, "DYN BASS"}, {BK_LEAD, 0, "WAH LEAD"},
-    {BK_BASS, 1, "DX BASS"}, {BK_KEYS, 1, "SUITCASE"}, {BK_PLUCK, 1, "CHURCH BEL"}, {BK_STAB, 1, "FM BRASS"},
-    {BK_LEAD, 1, "FM LEAD"}, {BK_KEYS, 1, "TOY PIANO"}, {BK_PLUCK, 1, "SYN VIBES"}, {BK_ORGAN, 1, "PERC ORGAN"},
-    {BK_BASS, 2, "CZ SYNBASS"}, {BK_ORGAN, 2, "CZ ORGAN"}, {BK_PLUCK, 2, "CZ BELLS"}, {BK_PAD, 2, "CZ SWEEP"},
-    {BK_PAD, 2, "CZ CHOIR"}, {BK_PLUCK, 2, "CZ PLUCK"}, {BK_LEAD, 2, "CZ SOLO"}, {BK_KEYS, 2, "CZ EPIANO"},
-    {BK_PAD, 3, "GB PAD"}, {BK_LEAD, 3, "NES LEAD"}, {BK_FX, 3, "ZAP"}, {BK_PLUCK, 3, "CHIP ARP"},
-    {BK_PAD, 5, "MALE CHOIR"}, {BK_FX, 5, "WHISPER"}, {BK_LEAD, 5, "ROBO VOX"}, {BK_LEAD, 5, "AAH LEAD"},
-    {BK_BASS, 5, "UH BASS"},
-    {BK_BASS, 6, "C64 BASS"}, {BK_LEAD, 6, "SID LEAD"}, {BK_STAB, 6, "MAJ STAB"}, {BK_STAB, 6, "SUS STAB"},
-    {BK_PAD, 6, "BP PAD"}, {BK_PLUCK, 6, "RING BELL"},
-    {BK_ORGAN, 7, "JAZZ PERC"}, {BK_ORGAN, 7, "FULL ORGAN"}, {BK_ORGAN, 7, "SOFT FLUTE"}, {BK_ORGAN, 7, "BLUES ORGN"},
-    {BK_ORGAN, 7, "STRING ORG"}, {BK_ORGAN, 7, "REED ORGAN"},
-    {BK_PLUCK, ENGI_PHYS, "DULCIMER"}, {BK_PLUCK, ENGI_PHYS, "WOOD MALLET"}, {BK_PLUCK, ENGI_PHYS, "GAMELAN"},
-    {BK_PAD, ENGI_PHYS, "VIOLIN BOW"}, {BK_PLUCK, ENGI_PHYS, "MBIRA"}, {BK_KEYS, ENGI_PHYS, "HARPSICH"},
-    {BK_FX, ENGI_NOISE, "STATIC"}, {BK_FX, ENGI_NOISE, "WHOOSH"}, {BK_FX, ENGI_NOISE, "TONAL NZ"},
-    {BK_LEAD, ENGI_HYBRID, "CLIP WIDE"}, {BK_PAD, ENGI_HYBRID, "DARK PAD"}, {BK_BASS, ENGI_HYBRID, "ACID HARD"},
-    {BK_PLUCK, ENGI_HYBRID, "BRIGHT BEL"}, {BK_LEAD, ENGI_HYBRID, "SOFT SYNC"},
-    {BK_BASS, ENGI_WAVE, "WT BASS"}, {BK_PAD, ENGI_WAVE, "VOCAL PAD"}, {BK_LEAD, ENGI_WAVE, "ODD LEAD"},
-    {BK_PLUCK, ENGI_WAVE, "FM BELLS"}, {BK_KEYS, ENGI_WAVE, "PD KEYS"}, {BK_PAD, ENGI_WAVE, "DIGI PAD"},
-    {BK_BASS, ENGI_WAVE, "CHIP BASS"}, {BK_ORGAN, ENGI_WAVE, "WT ORGAN2"}, {BK_LEAD, ENGI_WAVE, "SYNC SCREAM"},
-    {BK_PLUCK, ENGI_WAVE, "COMB BELL"}, {BK_LEAD, ENGI_WAVE, "WT SUPER"}, {BK_PAD, ENGI_WAVE, "HARM PAD"},
-    {BK_BASS, ENGI_ACID, "ACID HOUSE"}, {BK_BASS, ENGI_ACID, "SQR SQUELCH"}, {BK_BASS, ENGI_ACID, "SOFT 303"},
-    {BK_BASS, ENGI_ACID, "ACID ARP"}, {BK_BASS, ENGI_ACID, "SLIDE BASS"}, {BK_BASS, ENGI_ACID, "FUZZ ACID"},
-    {BK_BASS, ENGI_ACID, "LOW 303"}, {BK_LEAD, ENGI_ACID, "SQR LEAD"},
-    {BK_PAD, ENGI_STRINGS, "OMNI STR"}, {BK_PAD, ENGI_STRINGS, "SLOW STR"}, {BK_STAB, ENGI_STRINGS, "STR STAB"},
-    {BK_PAD, ENGI_STRINGS, "CHOIR STR"}, {BK_PAD, ENGI_STRINGS, "BRIGHT STR"}, {BK_PAD, ENGI_STRINGS, "LOW STR"},
-    {BK_PAD, ENGI_STRINGS, "80S STR"}, {BK_PAD, ENGI_STRINGS, "TAPE STR"},
-    {BK_STAB, ENGI_MACRO, "HOUSE CHRD"}, {BK_PAD, ENGI_MACRO, "SUS PAD"}, {BK_KEYS, ENGI_MACRO, "6/9 KEYS"},
-    {BK_STAB, ENGI_MACRO, "POWER CHRD"}, {BK_PAD, ENGI_MACRO, "M11 PAD"}, {BK_PAD, ENGI_MACRO, "SWARM PAD"},
-    {BK_LEAD, ENGI_MACRO, "SWARM LEAD"}, {BK_ORGAN, ENGI_MACRO, "ORGAN ADD"}, {BK_PLUCK, ENGI_MACRO, "ADD BELL"},
-    {BK_BASS, ENGI_MACRO, "TALK BASS"}, {BK_FX, ENGI_MACRO, "MAMA"}, {BK_LEAD, ENGI_MACRO, "OI LEAD"},
-    /* Clipper 0.5: VPS and TERRAIN (Felucca discussions #145, #146) */
-    {BK_LEAD, ENGI_VPS, "VPS LEAD"}, {BK_PAD, ENGI_VPS, "FORMANT PAD"}, {BK_BASS, ENGI_VPS, "VPS BASS"},
-    {BK_LEAD, ENGI_VPS, "SYNC SWEEP"}, {BK_PLUCK, ENGI_VPS, "VOX PLUCK"}, {BK_KEYS, ENGI_VPS, "HOLLOW KEYS"},
-    {BK_STAB, ENGI_VPS, "DIGI BRASS"}, {BK_PLUCK, ENGI_VPS, "VPS BELL"}, {BK_BASS, ENGI_VPS, "WOBBLE VPS"},
-    {BK_PAD, ENGI_VPS, "VPS CHOIR"},
-    {BK_KEYS, ENGI_FMX, "FMX EP"}, {BK_PLUCK, ENGI_FMX, "FMX BELL"}, {BK_BASS, ENGI_FMX, "SAW FM BASS"},
-    {BK_STAB, ENGI_FMX, "FMX BRASS"}, {BK_ORGAN, ENGI_FMX, "FMX ORGAN"}, {BK_PLUCK, ENGI_FMX, "RING BELLS"},
-    {BK_BASS, ENGI_FMX, "TRUE FM GRWL"}, {BK_LEAD, ENGI_FMX, "CHIP FM LEAD"}, {BK_KEYS, ENGI_FMX, "OPL KEYS"},
-    {BK_PAD, ENGI_FMX, "FMX PAD"}, {BK_FX, ENGI_FMX, "FM KICK"}, {BK_FX, ENGI_FMX, "METAL HIT"},
-    {BK_LEAD, ENGI_FMX, "FM SYNC LEAD"}, {BK_PLUCK, ENGI_FMX, "FMX PLUCK"}, {BK_BASS, ENGI_FMX, "FM WOBBLE"},
-    {BK_KEYS, ENGI_FMX, "CASCADE"},
-    {BK_LEAD, ENGI_WSEQ, "WAVE STEPS"}, {BK_STAB, ENGI_WSEQ, "RHYTHM SEQ"}, {BK_PAD, ENGI_WSEQ, "SWEEP PAD"},
-    {BK_STAB, ENGI_WSEQ, "FIFTH STAB"}, {BK_LEAD, ENGI_WSEQ, "MINOR SEQ"}, {BK_KEYS, ENGI_WSEQ, "MAJOR SEQ"},
-    {BK_BASS, ENGI_WSEQ, "OCTAVE BASS"}, {BK_PAD, ENGI_WSEQ, "TRANCE GATE"}, {BK_PLUCK, ENGI_WSEQ, "BELL STEPS"},
-    {BK_LEAD, ENGI_WSEQ, "8BIT SEQ"}, {BK_PAD, ENGI_WSEQ, "MORPH PAD"}, {BK_PAD, ENGI_WSEQ, "VOX STEPS"},
-    {BK_FX, ENGI_WSEQ, "NOISY SEQ"}, {BK_BASS, ENGI_WSEQ, "DUB STEPS"}, {BK_LEAD, ENGI_WSEQ, "DORIAN RUN"},
-    {BK_PLUCK, ENGI_WSEQ, "PING PONG"},
-    {BK_PAD, ENGI_TERRAIN, "TERRAIN"}, {BK_PAD, ENGI_TERRAIN, "RIPPLE PAD"}, {BK_KEYS, ENGI_TERRAIN, "CRYSTAL"},
-    {BK_BASS, ENGI_TERRAIN, "BUMPY BASS"}, {BK_LEAD, ENGI_TERRAIN, "SADDLE LEAD"}, {BK_FX, ENGI_TERRAIN, "FOLD DRONE"},
-    {BK_LEAD, ENGI_TERRAIN, "TWISTER"}, {BK_FX, ENGI_TERRAIN, "CHAOS FX"}, {BK_KEYS, ENGI_TERRAIN, "ORBIT KEYS"},
-    {BK_PLUCK, ENGI_TERRAIN, "TERRA PLUCK"},
+    {BK_STAB, 0, "SYN BRASS"},
+#if CLIPPER_SYNTH
+    {BK_BASS, 0, "TAURUS"},
+    {BK_BASS, 0, "DYN BASS"},
+    {BK_PAD, 0, "JUNO PAD"},
+    {BK_LEAD, 0, "PROPH LEAD"},
+    {BK_LEAD, 0, "WAH LEAD"},
+    {BK_PLUCK, 0, "SQR PLUCK"},
+    {BK_STAB, 0, "OBX BRASS"},
+    {BK_STAB, 0, "UNI STAB"},
 #endif
-    /* Clipper 0.2: the MOOG ladder */
-    {BK_BASS, ENGI_HYBRID, "MOOG BASS"}, {BK_BASS, 0, "MINI BASS"}, {BK_LEAD, ENGI_HYBRID, "MOOG LEAD"},
-    {BK_LEAD, 0, "MINI LEAD"}, {BK_PAD, ENGI_HYBRID, "LADDER PAD"},
+    /* ---- 1 DIGITAL ---- */
+    {BK_BASS, 1, "FM BASS"},
+    {BK_BASS, 1, "BASS GTR"},
+    {BK_KEYS, 1, "RHODES"},
+    {BK_KEYS, 1, "DX RHODES"},
+    {BK_KEYS, 1, "WURLI"},
+    {BK_KEYS, 1, "M1 PIANO"},
+    {BK_KEYS, 1, "AFRO KEYS"},
+    {BK_KEYS, 1, "CLAV"},
+    {BK_KEYS, 1, "FM GRAND"},
+    {BK_PAD, 1, "GLASS PAD"},
+    {BK_PLUCK, 1, "PLUGG BELL"},
+    {BK_PLUCK, 1, "TRAP BELL"},
+    {BK_PLUCK, 1, "MUSIC BOX"},
+    {BK_PLUCK, 1, "KALIMBA"},
+    {BK_PLUCK, 1, "MARIMBA"},
+    {BK_PLUCK, 1, "HARP"},
+    {BK_PLUCK, 1, "STEEL DRUM"},
+    {BK_PLUCK, 1, "GLOCKEN"},
+    {BK_PLUCK, 1, "CELESTA"},
+    {BK_PLUCK, 1, "XYLOPHONE"},
+    {BK_PLUCK, 1, "TUBE BELL"},
+    {BK_PLUCK, 1, "FM PLUCK"},
+#if CLIPPER_SYNTH
+    {BK_BASS, 1, "DX BASS"},
+    {BK_KEYS, 1, "SUITCASE"},
+    {BK_KEYS, 1, "TOY PIANO"},
+    {BK_ORGAN, 1, "PERC ORGAN"},
+    {BK_LEAD, 1, "FM LEAD"},
+    {BK_PLUCK, 1, "CHURCH BEL"},
+    {BK_PLUCK, 1, "SYN VIBES"},
+    {BK_STAB, 1, "FM BRASS"},
+#endif
+    /* ---- 2 PHASE ---- */
+    {BK_BASS, 2, "CZ BASS"},
+    {BK_KEYS, 2, "SOFT KEYS"},
+    {BK_PAD, 2, "CZ STRING"},
+    {BK_PAD, 2, "CZ PAD"},
+    {BK_LEAD, 2, "CZ LEAD"},
+    {BK_PLUCK, 2, "RESO PLUCK"},
+    {BK_PLUCK, 2, "CZ RESO"},
+    {BK_STAB, 2, "CZ BRASS"},
+#if CLIPPER_SYNTH
+    {BK_BASS, 2, "CZ SYNBASS"},
+    {BK_KEYS, 2, "CZ EPIANO"},
+    {BK_ORGAN, 2, "CZ ORGAN"},
+    {BK_PAD, 2, "CZ SWEEP"},
+    {BK_PAD, 2, "CZ CHOIR"},
+    {BK_LEAD, 2, "CZ SOLO"},
+    {BK_PLUCK, 2, "CZ BELLS"},
+    {BK_PLUCK, 2, "CZ PLUCK"},
+#endif
+    /* ---- 3 LOFI ---- */
+    {BK_BASS, 3, "GB BASS"},
+    {BK_BASS, 3, "NES BASS"},
+    {BK_LEAD, 3, "GAME LEAD"},
+    {BK_LEAD, 3, "WAVE LEAD"},
+    {BK_PLUCK, 3, "8BIT ARP"},
+    {BK_PLUCK, 3, "1BIT BEEP"},
+    {BK_STAB, 3, "CHIP CHORD"},
+    {BK_FX, 3, "CHIP NOISE"},
+#if CLIPPER_SYNTH
+    {BK_PAD, 3, "GB PAD"},
+    {BK_LEAD, 3, "NES LEAD"},
+    {BK_PLUCK, 3, "CHIP ARP"},
+    {BK_FX, 3, "ZAP"},
+#endif
+    /* ---- 4 SAMPLE ---- */
+    BK_SMP(BK_BASS, 4, "UP BASS")
+    BK_SMP(BK_BASS, 4, "DEEP BASS")
+    BK_SMP(BK_KEYS, 4, "GRAND PNO")
+    BK_SMP(BK_KEYS, 4, "DUSTY PNO")
+    BK_SMP(BK_KEYS, 4, "LOFI KEYS")
+    BK_SMP(BK_LEAD, 4, "LOFI FLUTE")
+    BK_SMP(BK_PLUCK, 4, "VIBES")
+    BK_SMP(BK_STAB, 4, "HORN STAB")
+    BK_SMP(BK_STAB, 4, "STRING STB")
+    BK_SMP(BK_FX, 4, "SCRATCH")
+    BK_SMP(BK_FX, 4, "GM KIT")
+#if CLIPPER_SYNTH
+    {BK_PAD, 4, "SAMPLE CHOIR"},
+    {BK_PAD, 4, "GLASS HARP"},
+    {BK_PAD, 4, "SAW ENSEMBLE"},
+    {BK_LEAD, 4, "AIR FLUTE"},
+#endif
+    /* ---- 5 FORMANT ---- */
+    {BK_BASS, 5, "WOW BASS"},
+    {BK_PAD, 5, "CHOIR AAH"},
+    {BK_PAD, 5, "SOUL OOH"},
+    {BK_PAD, 5, "VOX PAD"},
+    {BK_LEAD, 5, "TALKBOX"},
+    {BK_LEAD, 5, "HARMONICA"},
+    {BK_LEAD, 5, "ROBOT"},
+#if CLIPPER_SYNTH
+    {BK_BASS, 5, "UH BASS"},
+    {BK_PAD, 5, "MALE CHOIR"},
+    {BK_LEAD, 5, "ROBO VOX"},
+    {BK_LEAD, 5, "AAH LEAD"},
+    {BK_FX, 5, "WHISPER"},
+#endif
+    /* ---- 6 TRIO ---- */
+    {BK_BASS, 6, "FAT BASS"},
+    {BK_ORGAN, 6, "ACCORDION"},
+    {BK_PAD, 6, "SAW PAD"},
+    {BK_PAD, 6, "ENSEMBLE"},
+    {BK_PAD, 6, "PULSE PAD"},
+    {BK_LEAD, 6, "SYNC LEAD"},
+    {BK_LEAD, 6, "HOOVER"},
+    {BK_LEAD, 6, "SQR LEAD"},
+    {BK_STAB, 6, "MIN STAB"},
+    {BK_STAB, 6, "MIN7 STAB"},
+    {BK_STAB, 6, "RAVE STAB"},
+    {BK_STAB, 6, "DUB CHORD"},
+    {BK_STAB, 6, "80S POLY"},
+    {BK_STAB, 6, "POWER STAB"},
+#if CLIPPER_SYNTH
+    {BK_BASS, 6, "C64 BASS"},
+    {BK_PAD, 6, "BP PAD"},
+    {BK_LEAD, 6, "SID LEAD"},
+    {BK_PLUCK, 6, "RING BELL"},
+    {BK_STAB, 6, "MAJ STAB"},
+    {BK_STAB, 6, "SUS STAB"},
+#endif
+    /* ---- 7 DRAWBAR ---- */
+    {BK_ORGAN, 7, "SOUL ORGAN"},
+    {BK_ORGAN, 7, "GOSPEL"},
+    {BK_ORGAN, 7, "JAZZ ORGAN"},
+    {BK_ORGAN, 7, "DIRTY B3"},
+    {BK_ORGAN, 7, "HOUSE ORGN"},
+    {BK_ORGAN, 7, "ROCK ORGAN"},
+    {BK_ORGAN, 7, "CHAPEL"},
+    {BK_ORGAN, 7, "REGGAE ORG"},
+#if CLIPPER_SYNTH
+    {BK_ORGAN, 7, "JAZZ PERC"},
+    {BK_ORGAN, 7, "FULL ORGAN"},
+    {BK_ORGAN, 7, "SOFT FLUTE"},
+    {BK_ORGAN, 7, "BLUES ORGN"},
+    {BK_ORGAN, 7, "STRING ORG"},
+    {BK_ORGAN, 7, "REED ORGAN"},
+#endif
+    /* ---- 8 GRAIN ---- */
+    BK_SMP(BK_PAD, 8, "LOFI CLOUD")
+    BK_SMP(BK_PAD, 8, "VIBE HAZE")
+    BK_SMP(BK_PAD, 8, "STR CLOUD")
+    BK_SMP(BK_PAD, 8, "SHIMMER")
+    BK_SMP(BK_PAD, 8, "DRONE")
+    BK_SMP(BK_PAD, 8, "PNO FREEZE")
+    BK_SMP(BK_PAD, 8, "HORN CLOUD")
+    BK_SMP(BK_LEAD, 8, "FLUTE DUST")
+#if CLIPPER_SYNTH
+    {BK_PAD, ENGI_GRAIN, "VOX CLOUD"},
+    {BK_PAD, ENGI_GRAIN, "VOWEL DRIFT"},
+    {BK_PAD, ENGI_GRAIN, "ANGEL HALO"},
+    {BK_PAD, ENGI_GRAIN, "CRYSTAL SWELL"},
+    {BK_PAD, ENGI_GRAIN, "FROZEN PAD"},
+    {BK_PAD, ENGI_GRAIN, "DARK DRONE"},
+    {BK_PAD, ENGI_GRAIN, "SCAN PAD"},
+    {BK_PAD, ENGI_GRAIN, "WIND CHOIR"},
+    {BK_FX, ENGI_GRAIN, "GLASS RAIN"},
+    {BK_FX, ENGI_GRAIN, "BREATH GRAIN"},
+#endif
+    /* ---- 9 FM6 ---- */
+    {BK_BASS, ENGI_FM6, "ROUND BASS"},
+    {BK_KEYS, ENGI_FM6, "TINE EP"},
+    {BK_ORGAN, ENGI_FM6, "DRAWBARS"},
+    {BK_PAD, ENGI_FM6, "SOFT PAD"},
+    {BK_PLUCK, ENGI_FM6, "GLASS BELL"},
+    {BK_PLUCK, ENGI_FM6, "WOOD BARS"},
+    {BK_PLUCK, ENGI_FM6, "NYLON PICK"},
+    {BK_STAB, ENGI_FM6, "BRASS SECT"},
+    /* ---- 10 PHYS ---- */
+    {BK_BASS, ENGI_PHYS, "PLUCK BASS"},
+    {BK_PAD, ENGI_PHYS, "BOWED MTL"},
+    {BK_PAD, ENGI_PHYS, "CELLO BOW"},
+    {BK_PAD, ENGI_PHYS, "GLASS BOWL"},
+    {BK_PLUCK, ENGI_PHYS, "STR PLUCK"},
+    {BK_PLUCK, ENGI_PHYS, "SITAR"},
+    {BK_PLUCK, ENGI_PHYS, "PHYS HARP"},
+    {BK_PLUCK, ENGI_PHYS, "BELL TREE"},
+    {BK_PLUCK, ENGI_PHYS, "MODAL BAR"},
+    {BK_PLUCK, ENGI_PHYS, "THUMB PNO"},
+    {BK_PLUCK, ENGI_PHYS, "NYLON GTR"},
+    {BK_PLUCK, ENGI_PHYS, "STEEL GTR"},
+    {BK_PLUCK, ENGI_PHYS, "MUTED GTR"},
+    {BK_PLUCK, ENGI_PHYS, "KOTO"},
+    {BK_PLUCK, ENGI_PHYS, "BANJO"},
+    {BK_PLUCK, ENGI_PHYS, "TANPURA"},
+    {BK_PLUCK, ENGI_PHYS, "CHIMES"},
+    {BK_PLUCK, ENGI_PHYS, "BIG BELL"},
+    {BK_PLUCK, ENGI_PHYS, "VIBRA BAR"},
+    {BK_PLUCK, ENGI_PHYS, "STEEL PAN"},
+    {BK_PLUCK, ENGI_PHYS, "WOOD BLOCK"},
+    {BK_FX, ENGI_PHYS, "HAND DRUM"},
+    {BK_FX, ENGI_PHYS, "MEMB TOMS"},
+    {BK_FX, ENGI_PHYS, "TABLA"},
+    {BK_FX, ENGI_PHYS, "CONGA"},
+    {BK_FX, ENGI_PHYS, "TIMPANI"},
+#if CLIPPER_SYNTH
+    {BK_KEYS, ENGI_PHYS, "HARPSICH"},
+    {BK_PAD, ENGI_PHYS, "VIOLIN BOW"},
+    {BK_PLUCK, ENGI_PHYS, "DULCIMER"},
+    {BK_PLUCK, ENGI_PHYS, "WOOD MALLET"},
+    {BK_PLUCK, ENGI_PHYS, "GAMELAN"},
+    {BK_PLUCK, ENGI_PHYS, "MBIRA"},
+#endif
+    /* ---- 11 NOISE ---- */
+    {BK_PAD, ENGI_NOISE, "WIND"},
+    {BK_PAD, ENGI_NOISE, "OCEAN"},
+    {BK_LEAD, ENGI_NOISE, "NZ ARCADE"},
+    {BK_FX, ENGI_NOISE, "RAIN"},
+    {BK_FX, ENGI_NOISE, "NZ METAL"},
+    {BK_FX, ENGI_NOISE, "VINYL"},
+    {BK_FX, ENGI_NOISE, "HISS"},
+    {BK_FX, ENGI_NOISE, "RISER"},
+    {BK_FX, ENGI_NOISE, "NZ SNARE"},
+    {BK_FX, ENGI_NOISE, "BITCRUSH"},
+    {BK_FX, ENGI_NOISE, "RADIO"},
+#if CLIPPER_SYNTH
+    {BK_FX, ENGI_NOISE, "STATIC"},
+    {BK_FX, ENGI_NOISE, "WHOOSH"},
+    {BK_FX, ENGI_NOISE, "TONAL NZ"},
+#endif
+    /* ---- 12 HYBRID ---- */
+    {BK_BASS, ENGI_HYBRID, "ACID"},
+    {BK_BASS, ENGI_HYBRID, "WOBBLE"},
+    {BK_BASS, ENGI_HYBRID, "REESE"},
+    {BK_BASS, ENGI_HYBRID, "FOLD BASS"},
+    {BK_BASS, ENGI_HYBRID, "808 SUB"},
+    {BK_BASS, ENGI_HYBRID, "MOOG BASS"},
+    {BK_KEYS, ENGI_HYBRID, "FM KEYS"},
+    {BK_PAD, ENGI_HYBRID, "CLIPPER"},
+    {BK_PAD, ENGI_HYBRID, "POLY PAD"},
+    {BK_PAD, ENGI_HYBRID, "STRINGS"},
+    {BK_PAD, ENGI_HYBRID, "VOX"},
+    {BK_PAD, ENGI_HYBRID, "GLASS PAD"},
+    {BK_PAD, ENGI_HYBRID, "DRONE"},
+    {BK_PAD, ENGI_HYBRID, "LADDER PAD"},
+    {BK_LEAD, ENGI_HYBRID, "SYNC LEAD"},
+    {BK_LEAD, ENGI_HYBRID, "HOOVER"},
+    {BK_LEAD, ENGI_HYBRID, "CHIP LEAD"},
+    {BK_LEAD, ENGI_HYBRID, "TRANCE"},
+    {BK_LEAD, ENGI_HYBRID, "MOOG LEAD"},
+    {BK_PLUCK, ENGI_HYBRID, "PLUCK"},
+    {BK_PLUCK, ENGI_HYBRID, "SAW PLUCK"},
+    {BK_PLUCK, ENGI_HYBRID, "FM BELL"},
+    {BK_PLUCK, ENGI_HYBRID, "SPACE BEL"},
+    {BK_PLUCK, ENGI_HYBRID, "METAL"},
+    {BK_STAB, ENGI_HYBRID, "BRASS"},
+    {BK_FX, ENGI_HYBRID, "RISER"},
+    {BK_FX, ENGI_HYBRID, "INIT"},
+#if CLIPPER_SYNTH
+    {BK_BASS, ENGI_HYBRID, "ACID HARD"},
+    {BK_PAD, ENGI_HYBRID, "DARK PAD"},
+    {BK_LEAD, ENGI_HYBRID, "CLIP WIDE"},
+    {BK_LEAD, ENGI_HYBRID, "SOFT SYNC"},
+    {BK_PLUCK, ENGI_HYBRID, "BRIGHT BEL"},
+#endif
 #if FELUCCA_SLICE
-    {BK_FX, ENGI_SLICE, "BREAK 16"}, {BK_FX, ENGI_SLICE, "CHOP 8"}, {BK_FX, ENGI_SLICE, "REVERSE"},
+    /* ---- 13 SLICE ---- */
+    {BK_FX, ENGI_SLICE, "BREAK 16"},
+    {BK_FX, ENGI_SLICE, "CHOP 8"},
+    {BK_FX, ENGI_SLICE, "REVERSE"},
     {BK_FX, ENGI_SLICE, "USR SLICE"},
 #endif
-#if CLIPPER_SYNTH                                    /* (appended: the favourites keep their entries' places) */
-    /* Clipper 0.8: JUNO, VECTOR */
-    {BK_PAD, ENGI_JUNO, "JUNO 106 PAD"}, {BK_STAB, ENGI_JUNO, "JUNO BRASS"}, {BK_BASS, ENGI_JUNO, "JUNO BASS"},
-    {BK_PAD, ENGI_JUNO, "JUNO STRINGS"}, {BK_KEYS, ENGI_JUNO, "POLY KEYS"}, {BK_LEAD, ENGI_JUNO, "SYNTHWAVE LD"},
-    {BK_STAB, ENGI_JUNO, "80S HITS"}, {BK_KEYS, ENGI_JUNO, "JUNO PIANO"}, {BK_PAD, ENGI_JUNO, "DREAM PAD"},
-    {BK_BASS, ENGI_JUNO, "SUB BASS 106"}, {BK_STAB, ENGI_JUNO, "SYNTH BRASS 2"}, {BK_PLUCK, ENGI_JUNO, "ARP PLUCK"},
-    {BK_FX, ENGI_JUNO, "NOISE SWEEP"}, {BK_ORGAN, ENGI_JUNO, "JUNO ORGAN"}, {BK_LEAD, ENGI_JUNO, "SAW LEAD 106"},
+#if CLIPPER_SYNTH
+    /* ---- 13 WAVE ---- */
+    {BK_BASS, ENGI_WAVE, "SYNC BASS"},
+    {BK_BASS, ENGI_WAVE, "FM GROWL"},
+    {BK_BASS, ENGI_WAVE, "WT BASS"},
+    {BK_BASS, ENGI_WAVE, "CHIP BASS"},
+    {BK_KEYS, ENGI_WAVE, "CZ WAVE"},
+    {BK_KEYS, ENGI_WAVE, "PD KEYS"},
+    {BK_ORGAN, ENGI_WAVE, "ORGAN WT"},
+    {BK_ORGAN, ENGI_WAVE, "WT ORGAN2"},
+    {BK_PAD, ENGI_WAVE, "PPG PAD"},
+    {BK_PAD, ENGI_WAVE, "WT SWEEP"},
+    {BK_PAD, ENGI_WAVE, "VOCAL WT"},
+    {BK_PAD, ENGI_WAVE, "HARMONICS"},
+    {BK_PAD, ENGI_WAVE, "COMB PAD"},
+    {BK_PAD, ENGI_WAVE, "PWM STR"},
+    {BK_PAD, ENGI_WAVE, "VOCAL PAD"},
+    {BK_PAD, ENGI_WAVE, "DIGI PAD"},
+    {BK_PAD, ENGI_WAVE, "HARM PAD"},
+    {BK_LEAD, ENGI_WAVE, "WT BASIC"},
+    {BK_LEAD, ENGI_WAVE, "RESO SWP"},
+    {BK_LEAD, ENGI_WAVE, "FOLD LEAD"},
+    {BK_LEAD, ENGI_WAVE, "CHIP WT"},
+    {BK_LEAD, ENGI_WAVE, "ODD LEAD"},
+    {BK_LEAD, ENGI_WAVE, "SYNC SCREAM"},
+    {BK_LEAD, ENGI_WAVE, "WT SUPER"},
+    {BK_PLUCK, ENGI_WAVE, "DIGI BELL"},
+    {BK_PLUCK, ENGI_WAVE, "FM BELLS"},
+    {BK_PLUCK, ENGI_WAVE, "COMB BELL"},
+    {BK_FX, ENGI_WAVE, "USER WT"},
+    /* ---- 14 ACID ---- */
+    {BK_BASS, ENGI_ACID, "ACID LINE"},
+    {BK_BASS, ENGI_ACID, "SQUELCH"},
+    {BK_BASS, ENGI_ACID, "SQR ACID"},
+    {BK_BASS, ENGI_ACID, "DEEP 303"},
+    {BK_BASS, ENGI_ACID, "RUBBER"},
+    {BK_BASS, ENGI_ACID, "DIST ACID"},
+    {BK_BASS, ENGI_ACID, "BUBBLE"},
+    {BK_BASS, ENGI_ACID, "ACID HOUSE"},
+    {BK_BASS, ENGI_ACID, "SQR SQUELCH"},
+    {BK_BASS, ENGI_ACID, "SOFT 303"},
+    {BK_BASS, ENGI_ACID, "ACID ARP"},
+    {BK_BASS, ENGI_ACID, "SLIDE BASS"},
+    {BK_BASS, ENGI_ACID, "FUZZ ACID"},
+    {BK_BASS, ENGI_ACID, "LOW 303"},
+    {BK_LEAD, ENGI_ACID, "ACID LEAD"},
+    {BK_LEAD, ENGI_ACID, "SQR LEAD"},
+    /* ---- 15 STRINGS ---- */
+    {BK_PAD, ENGI_STRINGS, "SOLINA"},
+    {BK_PAD, ENGI_STRINGS, "VIOLINS"},
+    {BK_PAD, ENGI_STRINGS, "CELLOS"},
+    {BK_PAD, ENGI_STRINGS, "ENSEMBLE"},
+    {BK_PAD, ENGI_STRINGS, "STR MACHINE"},
+    {BK_PAD, ENGI_STRINGS, "GLASS STR"},
+    {BK_PAD, ENGI_STRINGS, "DARK ENS"},
+    {BK_PAD, ENGI_STRINGS, "PULSE STR"},
+    {BK_PAD, ENGI_STRINGS, "OMNI STR"},
+    {BK_PAD, ENGI_STRINGS, "SLOW STR"},
+    {BK_PAD, ENGI_STRINGS, "CHOIR STR"},
+    {BK_PAD, ENGI_STRINGS, "BRIGHT STR"},
+    {BK_PAD, ENGI_STRINGS, "LOW STR"},
+    {BK_PAD, ENGI_STRINGS, "80S STR"},
+    {BK_PAD, ENGI_STRINGS, "TAPE STR"},
+    {BK_STAB, ENGI_STRINGS, "STR STAB"},
+    /* ---- 16 MACRO ---- */
+    {BK_BASS, ENGI_MACRO, "SWARM SUB"},
+    {BK_BASS, ENGI_MACRO, "WOW BASS"},
+    {BK_BASS, ENGI_MACRO, "TALK BASS"},
+    {BK_KEYS, ENGI_MACRO, "MAJ7 KEYS"},
+    {BK_KEYS, ENGI_MACRO, "ADDITIVE"},
+    {BK_KEYS, ENGI_MACRO, "6/9 KEYS"},
+    {BK_ORGAN, ENGI_MACRO, "HARMONIUM"},
+    {BK_ORGAN, ENGI_MACRO, "ORGAN ADD"},
+    {BK_PAD, ENGI_MACRO, "M9 PAD"},
+    {BK_PAD, ENGI_MACRO, "SWARM"},
+    {BK_PAD, ENGI_MACRO, "SUS PAD"},
+    {BK_PAD, ENGI_MACRO, "M11 PAD"},
+    {BK_PAD, ENGI_MACRO, "SWARM PAD"},
+    {BK_LEAD, ENGI_MACRO, "YEAH"},
+    {BK_LEAD, ENGI_MACRO, "SWARM LEAD"},
+    {BK_LEAD, ENGI_MACRO, "OI LEAD"},
+    {BK_PLUCK, ENGI_MACRO, "BELL TONE"},
+    {BK_PLUCK, ENGI_MACRO, "PING"},
+    {BK_PLUCK, ENGI_MACRO, "ADD BELL"},
+    {BK_STAB, ENGI_MACRO, "CHORD STAB"},
+    {BK_STAB, ENGI_MACRO, "HOUSE CHRD"},
+    {BK_STAB, ENGI_MACRO, "POWER CHRD"},
+    {BK_FX, ENGI_MACRO, "VOWELS"},
+    {BK_FX, ENGI_MACRO, "MAMA"},
+    /* ---- 17 VPS ---- */
+    {BK_BASS, ENGI_VPS, "VPS BASS"},
+    {BK_BASS, ENGI_VPS, "WOBBLE VPS"},
+    {BK_KEYS, ENGI_VPS, "HOLLOW KEYS"},
+    {BK_PAD, ENGI_VPS, "FORMANT PAD"},
+    {BK_PAD, ENGI_VPS, "VPS CHOIR"},
+    {BK_LEAD, ENGI_VPS, "VPS LEAD"},
+    {BK_LEAD, ENGI_VPS, "SYNC SWEEP"},
+    {BK_PLUCK, ENGI_VPS, "VOX PLUCK"},
+    {BK_PLUCK, ENGI_VPS, "VPS BELL"},
+    {BK_STAB, ENGI_VPS, "DIGI BRASS"},
+    /* ---- 18 TERRAIN ---- */
+    {BK_BASS, ENGI_TERRAIN, "BUMPY BASS"},
+    {BK_KEYS, ENGI_TERRAIN, "CRYSTAL"},
+    {BK_KEYS, ENGI_TERRAIN, "ORBIT KEYS"},
+    {BK_PAD, ENGI_TERRAIN, "TERRAIN"},
+    {BK_PAD, ENGI_TERRAIN, "RIPPLE PAD"},
+    {BK_LEAD, ENGI_TERRAIN, "SADDLE LEAD"},
+    {BK_LEAD, ENGI_TERRAIN, "TWISTER"},
+    {BK_PLUCK, ENGI_TERRAIN, "TERRA PLUCK"},
+    {BK_FX, ENGI_TERRAIN, "FOLD DRONE"},
+    {BK_FX, ENGI_TERRAIN, "CHAOS FX"},
+    /* ---- 19 FMX ---- */
+    {BK_BASS, ENGI_FMX, "SAW FM BASS"},
+    {BK_BASS, ENGI_FMX, "TRUE FM GRWL"},
+    {BK_BASS, ENGI_FMX, "FM WOBBLE"},
+    {BK_KEYS, ENGI_FMX, "FMX EP"},
+    {BK_KEYS, ENGI_FMX, "OPL KEYS"},
+    {BK_KEYS, ENGI_FMX, "CASCADE"},
+    {BK_ORGAN, ENGI_FMX, "FMX ORGAN"},
+    {BK_PAD, ENGI_FMX, "FMX PAD"},
+    {BK_LEAD, ENGI_FMX, "CHIP FM LEAD"},
+    {BK_LEAD, ENGI_FMX, "FM SYNC LEAD"},
+    {BK_PLUCK, ENGI_FMX, "FMX BELL"},
+    {BK_PLUCK, ENGI_FMX, "RING BELLS"},
+    {BK_PLUCK, ENGI_FMX, "FMX PLUCK"},
+    {BK_STAB, ENGI_FMX, "FMX BRASS"},
+    {BK_FX, ENGI_FMX, "FM KICK"},
+    {BK_FX, ENGI_FMX, "METAL HIT"},
+    /* ---- 20 WSEQ ---- */
+    {BK_BASS, ENGI_WSEQ, "OCTAVE BASS"},
+    {BK_BASS, ENGI_WSEQ, "DUB STEPS"},
+    {BK_KEYS, ENGI_WSEQ, "MAJOR SEQ"},
+    {BK_PAD, ENGI_WSEQ, "SWEEP PAD"},
+    {BK_PAD, ENGI_WSEQ, "TRANCE GATE"},
+    {BK_PAD, ENGI_WSEQ, "MORPH PAD"},
+    {BK_PAD, ENGI_WSEQ, "VOX STEPS"},
+    {BK_LEAD, ENGI_WSEQ, "WAVE STEPS"},
+    {BK_LEAD, ENGI_WSEQ, "MINOR SEQ"},
+    {BK_LEAD, ENGI_WSEQ, "8BIT SEQ"},
+    {BK_LEAD, ENGI_WSEQ, "DORIAN RUN"},
+    {BK_PLUCK, ENGI_WSEQ, "BELL STEPS"},
+    {BK_PLUCK, ENGI_WSEQ, "PING PONG"},
+    {BK_STAB, ENGI_WSEQ, "RHYTHM SEQ"},
+    {BK_STAB, ENGI_WSEQ, "FIFTH STAB"},
+    {BK_FX, ENGI_WSEQ, "NOISY SEQ"},
+    /* ---- 21 JUNO ---- */
+    {BK_BASS, ENGI_JUNO, "JUNO BASS"},
+    {BK_BASS, ENGI_JUNO, "SUB BASS 106"},
+    {BK_KEYS, ENGI_JUNO, "POLY KEYS"},
+    {BK_KEYS, ENGI_JUNO, "JUNO PIANO"},
+    {BK_ORGAN, ENGI_JUNO, "JUNO ORGAN"},
+    {BK_PAD, ENGI_JUNO, "JUNO 106 PAD"},
+    {BK_PAD, ENGI_JUNO, "JUNO STRINGS"},
+    {BK_PAD, ENGI_JUNO, "DREAM PAD"},
+    {BK_LEAD, ENGI_JUNO, "SYNTHWAVE LD"},
+    {BK_LEAD, ENGI_JUNO, "SAW LEAD 106"},
     {BK_LEAD, ENGI_JUNO, "HOOVER JUNO"},
-    {BK_PAD, ENGI_VECTOR, "VS PAD"}, {BK_PAD, ENGI_VECTOR, "VECTOR SWEEP"}, {BK_STAB, ENGI_VECTOR, "VS BRASS"},
-    {BK_KEYS, ENGI_VECTOR, "GLASS VS"}, {BK_PAD, ENGI_VECTOR, "VOX MORPH"}, {BK_PLUCK, ENGI_VECTOR, "DIGI BELLS"},
-    {BK_BASS, ENGI_VECTOR, "VS BASS"}, {BK_LEAD, ENGI_VECTOR, "WAVE LOOP"}, {BK_ORGAN, ENGI_VECTOR, "ORGAN DRIFT"},
-    {BK_PAD, ENGI_VECTOR, "STRING VS"}, {BK_FX, ENGI_VECTOR, "METAL HIT"}, {BK_KEYS, ENGI_VECTOR, "HOLLOW KEYS"},
-    {BK_LEAD, ENGI_VECTOR, "RESO VECTOR"}, {BK_FX, ENGI_VECTOR, "SPACE DRONE"}, {BK_LEAD, ENGI_VECTOR, "VS LEAD"},
+    {BK_PLUCK, ENGI_JUNO, "ARP PLUCK"},
+    {BK_PLUCK, ENGI_JUNO, "TURING JUNO"},
+    {BK_STAB, ENGI_JUNO, "JUNO BRASS"},
+    {BK_STAB, ENGI_JUNO, "80S HITS"},
+    {BK_STAB, ENGI_JUNO, "SYNTH BRASS 2"},
+    {BK_FX, ENGI_JUNO, "NOISE SWEEP"},
+    /* ---- 22 VECTOR ---- */
+    {BK_BASS, ENGI_VECTOR, "VS BASS"},
+    {BK_BASS, ENGI_VECTOR, "DIODE VS BASS"},
+    {BK_KEYS, ENGI_VECTOR, "GLASS VS"},
+    {BK_KEYS, ENGI_VECTOR, "HOLLOW KEYS"},
+    {BK_ORGAN, ENGI_VECTOR, "ORGAN DRIFT"},
+    {BK_PAD, ENGI_VECTOR, "VS PAD"},
+    {BK_PAD, ENGI_VECTOR, "VECTOR SWEEP"},
+    {BK_PAD, ENGI_VECTOR, "VOX MORPH"},
+    {BK_PAD, ENGI_VECTOR, "STRING VS"},
     {BK_PAD, ENGI_VECTOR, "CHOIR VS"},
-    /* Clipper 0.9 (appended: the favourites keep their places) */
-    {BK_PLUCK, ENGI_JUNO, "TURING JUNO"}, {BK_LEAD, ENGI_VECTOR, "MS20 VECTOR"}, {BK_BASS, ENGI_VECTOR, "DIODE VS BASS"},
-    /* Clipper 0.9: GRAIN and SAMPLE on Clipper's own synthesized sources (tools/gen_clipper_sets.py) */
-    {BK_PAD, ENGI_GRAIN, "VOX CLOUD"}, {BK_PAD, ENGI_GRAIN, "VOWEL DRIFT"}, {BK_PAD, ENGI_GRAIN, "ANGEL HALO"},
-    {BK_FX, ENGI_GRAIN, "GLASS RAIN"}, {BK_PAD, ENGI_GRAIN, "CRYSTAL SWELL"}, {BK_PAD, ENGI_GRAIN, "FROZEN PAD"},
-    {BK_PAD, ENGI_GRAIN, "DARK DRONE"}, {BK_PAD, ENGI_GRAIN, "SCAN PAD"}, {BK_PAD, ENGI_GRAIN, "WIND CHOIR"},
-    {BK_FX, ENGI_GRAIN, "BREATH GRAIN"}, {BK_PAD, 4, "SAMPLE CHOIR"}, {BK_PAD, 4, "GLASS HARP"},
-    {BK_PAD, 4, "SAW ENSEMBLE"}, {BK_LEAD, 4, "AIR FLUTE"},
+    {BK_LEAD, ENGI_VECTOR, "WAVE LOOP"},
+    {BK_LEAD, ENGI_VECTOR, "RESO VECTOR"},
+    {BK_LEAD, ENGI_VECTOR, "VS LEAD"},
+    {BK_LEAD, ENGI_VECTOR, "MS20 VECTOR"},
+    {BK_PLUCK, ENGI_VECTOR, "DIGI BELLS"},
+    {BK_STAB, ENGI_VECTOR, "VS BRASS"},
+    {BK_FX, ENGI_VECTOR, "METAL HIT"},
+    {BK_FX, ENGI_VECTOR, "SPACE DRONE"},
 #endif
 };
 #define NBANK (sizeof BANK / sizeof BANK[0])
@@ -807,7 +1135,16 @@ static uint32_t base_at(uint32_t n, uint32_t *k)
     *k = bank_pi[n] == 0xFF ? 0u : bank_pi[n];
     return BANK[n].e;
 }
-static const char *base_kind(uint32_t n) { return n < NBANK ? BANK_KIND[BANK[n].kind] : "USER"; }
+static const char *base_kind(uint32_t n)
+{
+    if (n >= NBANK)
+        return "USER";
+#if CLIPPER_SYNTH
+    return ENGINES[BANK[n].e]->name;             /* Clipper: the engine of the block (ALGORITHM jumps by engine) */
+#else
+    return BANK_KIND[BANK[n].kind];
+#endif
+}
 
 /* 0.7, favourites (after SLOOP 2.7; PRESETS page, KNOB 4): up to 16 sounds at the top of the PRESETS list, kept in the
  * FM-1's settings (project.c, the settings' side record). An entry: a factory sound, its BANK index; a user preset,
@@ -1016,19 +1353,20 @@ static void br_filter_step(int32_t s)                 /* KNOB 2: ALL, the engine
     ui.force = 1;
 }
 
-/* Clipper: ALGORITHM, the kind of sound: the first sound of the next kind (BASS, KEYS, ORGN, PAD, LEAD, PLCK,
- * STAB, FX, then the user presets), or of the previous one; round */
+/* Clipper: ALGORITHM, the engine of the sound. The table is grouped by engine, one contiguous block
+ * each, so the jump lands on the first sound of the next engine (in the table's order), round. The
+ * favourites come first and the user presets last, each a group of its own. */
 static uint32_t kind_at(uint32_t n)                  /* (0.7: the favourites first, a kind of their own) */
 {
     uint32_t b[FAV_N], nf = fav_list(b);
+#if CLIPPER_SYNTH
+    return n < nf ? 0xFEu : n - nf < NBANK ? BANK[n - nf].e : 0xFFu;   /* Clipper: the engine's block */
+#else
     return n < nf ? 0xFEu : n - nf < NBANK ? BANK[n - nf].kind : 0xFFu;
+#endif
 }
-#if BOARD_SMK37
-/* The SMK: the sounds' families. The table is NOT contiguous (the newer sounds were appended with their kind,
- * so a kind comes back later in the list), so a family is "every sound of this kind", wherever it is.
- * ALGORITHM walks the kinds in the order they first appear and lands on the first sound of the next one;
- * PRESETS steps to the next sound of the same kind (kind_step) and stops at its edges. */
-static uint32_t kind_ring(uint32_t *out, uint32_t max)      /* the kinds, first appearance first */
+/* the groups in the order they first appear; with the table grouped by engine that is the engines' order */
+static uint32_t kind_ring(uint32_t *out, uint32_t max)
 {
     uint32_t total = 0, n, i, m = 0;
     (void)preset_pos(&total);
@@ -1041,7 +1379,7 @@ static uint32_t kind_ring(uint32_t *out, uint32_t max)      /* the kinds, first 
     }
     return m;
 }
-static uint32_t kind_start(uint32_t k)                      /* the first sound of a kind */
+static uint32_t kind_start(uint32_t k)                      /* the first sound of a group */
 {
     uint32_t total = 0, n;
     (void)preset_pos(&total);
@@ -1050,59 +1388,20 @@ static uint32_t kind_start(uint32_t k)                      /* the first sound o
             return n;
     return 0;
 }
-static int32_t kind_step(uint32_t cur, int32_t s)           /* the next / previous sound of this kind, -1 at the edge */
-{
-    uint32_t total = 0, n, k = kind_at(cur);
-    (void)preset_pos(&total);
-    if (s > 0) {
-        for (n = cur + 1u; n < total; n++)
-            if (kind_at(n) == k)
-                return (int32_t)n;
-    } else {
-        for (n = cur; n-- > 0u; )
-            if (kind_at(n) == k)
-                return (int32_t)n;
-    }
-    return -1;
-}
 static void preset_kind_jump(int32_t s)
 {
-    uint32_t ring[16], total, cur = preset_pos(&total), m, i;
+    uint32_t ring[32], total, cur = preset_pos(&total), m, i;   /* 23 engines, the favourites, the user presets */
     if (is_drum(TSEL) || total < 2u)
         return;
-    m = kind_ring(ring, 16u);
+    m = kind_ring(ring, 32u);
     if (!m)
         return;
-    for (i = 0; i < m && ring[i] != kind_at(cur); i++)       /* the kind shown */
+    for (i = 0; i < m && ring[i] != kind_at(cur); i++)       /* the group shown */
         ;
     i = i >= m ? 0u : s > 0 ? (i + 1u) % m : (i + m - 1u) % m;
     preset_go(kind_start(ring[i]));
     ui_message(preset_kind(kind_start(ring[i])));
 }
-#else
-static void preset_kind_jump(int32_t s)
-{
-    uint32_t total, cur = preset_pos(&total), n = cur, k;
-    if (is_drum(TSEL) || total < 2u)
-        return;
-    while (n && kind_at(n - 1u) == kind_at(cur))        /* the start of the kind shown */
-        n--;
-    if (s > 0) {
-        k = kind_at(cur);
-        while (n < total && kind_at(n) == k)
-            n++;
-        if (n >= total)
-            n = 0;
-    } else {
-        n = n ? n - 1u : total - 1u;                   /* into the kind before, then to its start */
-        k = kind_at(n);
-        while (n && kind_at(n - 1u) == k)
-            n--;
-    }
-    preset_go(n);
-    ui_message(preset_kind(n));
-}
-#endif
 
 /* HOME: what KNOB k edits: the engine's four main parameters; on the drum track
  * LEVEL and REV (GLO > DRUMS), PAN and LEN */

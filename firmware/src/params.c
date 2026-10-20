@@ -469,9 +469,9 @@ static void param_format(const param_desc_t *d, int32_t v, char *val, const char
     }
     default:
         if (d->names) {                               /* F_INT with a 0-terminated name list: the range */
-            uint32_t k = 0;                           /* split evenly over the names (engine desc hooks) */
-            while (d->names[k])
-                k++;
+            uint32_t k = 0, n = (uint32_t)(d->max - d->min + 1);   /* at most one name per value */
+            while (k < n && d->names[k])              /* (a list sized to the values and not 0-terminated, */
+                k++;                                  /*  as FMX's N_FMX_PATCH, stops here: no over-read) */
             str_cpy(val, d->names[(uint32_t)(clamp(v, d->min, d->max) - d->min) * k / (uint32_t)(d->max - d->min + 1)], 6);
         } else {
             fmt_int(val, v);

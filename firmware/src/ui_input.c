@@ -1370,6 +1370,8 @@ static void ui_input(void)
         else if (!ui.home && cur_page()->graph == GR_BROWSE)
             br_step(s);                                 /* (1.0: the PRESETS page: its engine filter) */
         else if (total) {
+            /* the whole list in one turn of the knob: the sounds grouped by engine, so it flows from one
+             * engine's block into the next; round at the ends */
             preset_go((uint32_t)(((int32_t)cur + s % (int32_t)total + (int32_t)total) % (int32_t)total));
 #if BOARD_SMK37
             {   /* the picker: the 16 sounds on the pads follow the browser */

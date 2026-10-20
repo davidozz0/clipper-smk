@@ -503,21 +503,21 @@ static void graph_browse(void)
     }
     for (row = r0; row <= r1; row++) {
         int32_t y = 4 + (row + 3) * 17;
-        char tag[5], nm[13];
+        char tag[8], nm[13];
         uint32_t n = cnt < 7u ? br_walk(first, row + 3) : br_walk(cur, row);
         int sel = n == cur;
         e = preset_at(n, &k);
         if (e == NENGINES) {                             /* user preset: "U07" and its name */
             up_slot_label(tag, k);
             up_name(k, nm);
-        } else {                                         /* its kind: BASS, KEYS, PAD... */
+        } else {                                         /* its engine: ANALOG, HYBRID, WAVE... */
             str_cpy(tag, preset_kind(n), sizeof tag);
             str_cpy(nm, ENGINES[e]->presets[k].name, sizeof nm);
         }
         if (sel)
             cv_rect(4, y + 6, 3, 3, C_WHITE);
         cv_text(14, y, &FONT_S, tag, sel ? C_GRAY : C_DIM);
-        cv_text(54, y, &FONT_S, nm, sel ? C_WHITE : C_GRAY);
+        cv_text(74, y, &FONT_S, nm, sel ? C_WHITE : C_GRAY);
     }
 }
 
