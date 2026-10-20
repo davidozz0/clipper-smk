@@ -219,6 +219,7 @@ static void smk_wheels(void)
     mw = mhi - m <= DEAD ? 0 : (mhi - m - DEAD) * 127 / (mhi - mlo - DEAD > 1 ? mhi - mlo - DEAD : 1);
     perf_bend = b;
     perf_modw = clamp(mw, 0, 127);
+    wheels_midi(8192 + b * 8192 / (SMK_BEND_ST * 4096), perf_modw);   /* the same wheels on MIDI out */
 }
 #endif
 

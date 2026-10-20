@@ -3137,11 +3137,48 @@ static void clkout_block(uint32_t n)
     }
 }
 
+/* SMK-37 Pro: the wheels on MIDI OUT too (pitch bend and CC1), the stream the jack promises.
+ * main.c smk_wheels leaves the last values here; the block sends them, so the audio ISR stays the
+ * only producer of the MIDI out queue (no lock: the main loop never runs during the ISR, and each
+ * value is one aligned word). Bend 14 bit around 8192: a step under 8/16384 is ignored (the centre
+ * is calibrated and follows its rest), the exact centre is always sent. The bend range is 1.1's
+ * (GLO > MIDI > BEND and its RPN 0): this stream carries no RPN of its own. */
+static volatile int32_t wh_bend = -1, wh_mod = -1;
+static int32_t wh_bend_sent = 0x2000, wh_mod_sent;
+static void wheels_midi(int32_t bend14, int32_t mod)
+{
+    wh_bend = bend14;
+    wh_mod = mod;
+}
+static void wheels_midi_block(void)
+{
+    int32_t b = wh_bend, m = wh_mod;
+    uint32_t ch = trk_midi_ch(song.sel);
+    if (b < 0 && m < 0)
+        return;
+    wh_bend = wh_mod = -1;
+    if (b >= 0) {
+        int32_t v = b > 16383 ? 16383 : b;
+        if (v - wh_bend_sent > 7 || wh_bend_sent - v > 7 || (v == 0x2000 && wh_bend_sent != 0x2000)) {
+            midi_out_event(0x0Eu | (0xE0u | ch) << 8 | (uint32_t)(v & 127) << 16 | (uint32_t)(v >> 7) << 24);
+            wh_bend_sent = v;
+        }
+    }
+    if (m >= 0) {
+        int32_t v = m > 127 ? 127 : m;
+        if (v != wh_mod_sent) {
+            midi_out_event(0x0Bu | (0xB0u | ch) << 8 | 1u << 16 | (uint32_t)v << 24);
+            wh_mod_sent = v;
+        }
+    }
+}
+
 /* everything that happens between two rendered blocks: transport, input, the steps of every
  * track at the clock, the click, the rolls and the arps; then the clock moves on by n samples */
 static void events_block(uint32_t n)
 {
     uint32_t i, pr, adv;
+    wheels_midi_block();
     if (mo_any && !song.g[G_MIDI]) {            /* MIDI = KEYS again: end what the sequencer had sent */
         seq_out_all_off();
         mo_any = 0;
