@@ -50,7 +50,7 @@ the user presets at the end.
 
 | | |
 |---|---|
-| package | 651 226 B, identity `SMK-37 Pro_900`, sha256 `f5647529…` |
+| package | 651 226 B, identity `SMK-37 Pro_900`, sha256 `f1e96a07…` (the 2026-10-21 build, the one the web installer publishes) |
 | app image | 586 272 B (fits the 619 520 B slot) |
 | flash layout | app area `0x4000…0x9D000` only |
 
