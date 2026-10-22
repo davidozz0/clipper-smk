@@ -4,7 +4,7 @@
 to the **M-VAVE SMK-37 Pro**. Same synth, same 23 engines and 407 factory sounds, on a keyboard
 with 37 velocity keys, 16 RGB pads, 8 encoders, two wheels and a TRS MIDI jack.
 
-Built on **Clipper 1.1** (`main`), with the port's changes on top — this branch, `smk37-1.1`.
+Built on **Clipper 1.1** (`main`), with the port's changes on top — this branch, `smk37`.
 A ready-to-flash package is in [`dist/clipper-smk37.fwsc`](dist/clipper-smk37.fwsc).
 
 > Not affiliated with M-VAVE or with the Clipper authors. The synth is their work; the port and
@@ -54,9 +54,23 @@ the user presets at the end.
 | app image | 586 272 B (fits the 619 520 B slot) |
 | flash layout | app area `0x4000…0x9D000` only |
 
-Write it with the M-VAVE/JieLi updater or with our tool (`tools/smk_flash_tui.py` in the work
-repository). **Rules**: two identical full dumps before writing; only the app area; read back and
-compare; keep the dumps. The head/SPL, calibration, BT and key data are never touched.
+Write it with the M-VAVE/JieLi updater, with our tool (`tools/smk_flash_tui.py` in the work
+repository), or from the browser (below). **Rules**: two identical full dumps before writing; only
+the app area; read back and compare; keep the dumps. The head/SPL, calibration, BT and key data are
+never touched.
+
+### Web installer (no tools, no driver)
+
+<https://davidozz0.github.io/clipper-smk/webapp/installer/> — open it in **Chrome or Edge** (Web Serial),
+plug the SMK via USB, press connect and pick its port. The page checks the package's sha256, writes the
+app area, verifies the identity the keyboard reports afterwards, and installs nothing on a device that
+is not `SMK-37 Pro_9..`. The editor is at `/webapp/editor/`; the installer also restores an official
+package you pick from disk (backup first — Clipper cannot open the stock presets).
+
+The page is generated, not hand-written: `python3 web/make_site.py <pkg> <version> build/site --beta`
+inlines `web/fm1ota.js`, `web/fm1pkg.js`, the metadata and the SMK-37 banner (`web/beta_banner.html`)
+into `web/index_pkg.html`; the result goes to the `gh-pages` branch. The package it publishes is the one
+passed to `make_site.py` — at the moment the 2026-10-21 build, sha256 `f1e96a07…`.
 
 ## Build
 
